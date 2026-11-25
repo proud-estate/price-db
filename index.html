@@ -93,6 +93,15 @@ label{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
 .role{font-size:12px;border-radius:6px;padding:1px 8px;background:var(--soft);border:1px solid var(--line);color:var(--ink);white-space:nowrap}
 .srow select{width:auto;min-height:36px;padding:4px 8px;font-size:14px}
 .by{font-size:12px;color:var(--mute)}
+.seg{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}
+.seg label{margin:0;font-weight:500}.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg span{display:inline-flex;align-items:center;min-height:40px;padding:6px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--card);cursor:pointer}
+.seg input:checked+span{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.seg input:focus-visible+span{outline:3px solid var(--acc);outline-offset:1px}
+.mv{background:var(--soft);border-radius:14px;padding:12px 14px;margin:8px 0 4px}
+.low{display:inline-block;font-size:12px;font-weight:700;color:#fff;background:var(--acc);border-radius:6px;padding:1px 8px;margin-inline-start:6px;white-space:nowrap}
+.mvin{color:var(--ink)}.mvout{color:var(--acc)}
+#kHist li{grid-template-columns:minmax(0,1fr) auto}
 .x0{border:0;background:none;font-size:24px;line-height:1;padding:4px 10px}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
@@ -120,19 +129,21 @@ label{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
 <div class="ubar"><span><b id="uName"></b> <span class="role" id="uRole"></span></span><button id="pwBtn">เปลี่ยนรหัสผ่าน</button><button id="outBtn">ออกจากระบบ</button></div>
 <header>
   <div>
-    <h1>คลังราคาสินค้าฝ่ายจัดซื้อ</h1>
-    <p class="sub">บันทึกใบเสนอราคา เทียบราคาล่าสุดกับราคาต่ำสุด แยกตามหมวดหมู่</p>
+    <h1>ระบบฝ่ายจัดซื้อ</h1>
+    <p class="sub">ราคาสินค้า ร้านค้า และสต๊อกวัสดุ ในที่เดียว</p>
   </div>
   <div class="stats">
     <div class="stat"><b class="num" id="sItems">–</b><span>รายการสินค้า</span></div>
     <div class="stat"><b class="num" id="sQuotes">–</b><span>ใบเสนอราคา</span></div>
     <div class="stat"><b class="num" id="sSup">–</b><span>ผู้ขาย</span></div>
+    <div class="stat"><b class="num" id="sLow">–</b><span>สต๊อกใกล้หมด</span></div>
   </div>
 </header>
 
 <nav class="tabs" role="tablist">
   <button class="tab" role="tab" id="tPrice" aria-selected="true">ราคาสินค้า</button>
   <button class="tab" role="tab" id="tSup" aria-selected="false">ร้านค้า / Supplier</button>
+  <button class="tab" role="tab" id="tStock" aria-selected="false">สต๊อกวัสดุ</button>
   <button class="tab" role="tab" id="tStaff" aria-selected="false" hidden>พนักงาน</button>
 </nav>
 
@@ -147,6 +158,22 @@ label{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
   <div class="miss" id="miss" hidden><b>ร้านที่มีในราคาสินค้าแต่ยังไม่มีข้อมูลร้าน</b><div class="row" id="missRow"></div></div>
   <div class="cards" id="cards"></div>
   <div class="empty" id="sEmpty" hidden></div>
+</section>
+
+<section id="vStock" hidden>
+  <div class="bar">
+    <input class="search" id="kq" type="search" placeholder="ค้นหารหัส ชื่อ หมวด หรือที่เก็บ" aria-label="ค้นหาสต๊อก">
+    <select class="sort" id="kcat" aria-label="หมวดหมู่"><option value="">ทุกหมวดหมู่</option></select>
+    <select class="sort" id="ksort" aria-label="เรียงลำดับ"><option value="low">ใกล้หมดก่อน</option><option value="name">ชื่อ ก–ฮ</option><option value="code">รหัส</option><option value="value">มูลค่าสูงสุด</option></select>
+    <button class="pri" id="addStock">+ เพิ่มรายการ</button>
+  </div>
+  <div class="chips" id="kchips" role="toolbar" aria-label="ประเภท"></div>
+  <div class="tbl">
+  <table class="stack"><thead><tr><th>รายการ</th><th>ประเภท</th><th class="r">คงเหลือ</th><th class="r">จุดสั่งซื้อ</th><th>ที่เก็บ</th><th>สถานะ</th><th class="r">ราคาล่าสุด / มูลค่า</th></tr></thead><tbody id="krows"></tbody></table>
+  <div class="empty" id="kEmpty" hidden></div>
+  </div>
+  <div class="foot"><span class="status" id="kSum"></span><button id="kCsv">ดาวน์โหลด CSV สต๊อก</button></div>
+  <p class="note">ยอดคงเหลือเปลี่ยนได้ผ่านการรับเข้า เบิกออก หรือปรับยอดเท่านั้น ทุกครั้งเก็บประวัติว่าใครทำ · ราคาล่าสุดดึงจากแท็บราคาสินค้าที่ชื่อตรงกัน</p>
 </section>
 
 <section id="vStaff" hidden>
@@ -233,6 +260,50 @@ label{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
   <div class="acts"><button type="button" data-close>ยกเลิก</button><button class="pri" type="submit" id="pwSave">บันทึกรหัสผ่าน</button></div></div>
   </form>
 </dialog>
+<dialog id="dSI">
+  <form id="sifm">
+  <div class="dh"><h2 id="siTitle">เพิ่มรายการสต๊อก</h2><button type="button" class="x0" data-close aria-label="ปิด">×</button></div>
+  <div class="db"><div class="grid">
+    <div class="full"><label for="siName">ชื่อวัสดุ / เครื่องมือ / อุปกรณ์ *</label><input id="siName" list="lName" required maxlength="120" autocomplete="off"><div class="hint">ใช้ชื่อเดียวกับในแท็บราคาสินค้า เพื่อให้ดึงราคาล่าสุดมาแสดง</div></div>
+    <div><label for="siKind">ประเภท *</label><select id="siKind"><option value="consumable">วัสดุสิ้นเปลือง</option><option value="tool">เครื่องมือ</option><option value="equipment">อุปกรณ์</option></select></div>
+    <div><label for="siCode">รหัส</label><input id="siCode" maxlength="40" placeholder="เช่น MT-001"></div>
+    <div><label for="siCat">หมวดหมู่</label><input id="siCat" list="lCat" maxlength="60" autocomplete="off" placeholder="เลือกหรือพิมพ์ใหม่"></div>
+    <div><label for="siUnit">หน่วย *</label><input id="siUnit" list="lUnit" required maxlength="30" autocomplete="off"></div>
+    <div id="siQtyW"><label for="siQty">ยอดยกมา</label><input id="siQty" type="number" inputmode="decimal" min="0" step="any" value="0"></div>
+    <div><label for="siMin">จุดสั่งซื้อ (เตือนเมื่อเหลือไม่เกิน)</label><input id="siMin" type="number" inputmode="decimal" min="0" step="any" value="0"></div>
+    <div><label for="siLoc">ที่เก็บ</label><input id="siLoc" list="lLoc" maxlength="80" placeholder="เช่น คลัง A ชั้น 2"></div>
+    <div id="siStatusW"><label for="siStatus">สถานะ</label><select id="siStatus"><option value="ready">พร้อมใช้</option><option value="repair">ส่งซ่อม</option><option value="broken">ชำรุด</option></select></div>
+    <div class="full"><label for="siNote">หมายเหตุ</label><textarea id="siNote" rows="2" maxlength="300"></textarea></div>
+  </div>
+  <div class="err" id="siErr"></div>
+  <div class="acts"><button type="button" class="danger" id="siDel" hidden>ลบรายการนี้</button><span style="flex:1"></span><button type="button" data-close>ยกเลิก</button><button class="pri" type="submit" id="siSave">บันทึก</button></div></div>
+  </form>
+</dialog>
+<dialog id="dK">
+  <div class="dh"><div><h2 id="kName"></h2><div class="cat" id="kMeta"></div></div><button type="button" class="x0" data-close aria-label="ปิด">×</button></div>
+  <div class="db">
+    <div class="kv" id="kKv"></div>
+    <form id="mvfm" class="mv">
+      <div class="seg" role="radiogroup" aria-label="ประเภทรายการ">
+        <label><input type="radio" name="mk" value="out" checked><span>เบิกออก</span></label>
+        <label><input type="radio" name="mk" value="in"><span>รับเข้า</span></label>
+        <label><input type="radio" name="mk" value="adjust"><span>ปรับยอด (นับจริง)</span></label>
+      </div>
+      <div class="grid">
+        <div><label for="mvQty" id="mvQtyL">จำนวนที่เบิก *</label><input id="mvQty" type="number" inputmode="decimal" min="0" step="any" required></div>
+        <div><label for="mvPerson" id="mvPersonL">ผู้เบิก</label><input id="mvPerson" maxlength="80" list="lPerson"></div>
+        <div><label for="mvRef">เลขที่เอกสาร</label><input id="mvRef" maxlength="80" placeholder="ใบเบิก / PO / ใบส่งของ"></div>
+        <div><label for="mvNote">หมายเหตุ</label><input id="mvNote" maxlength="300"></div>
+      </div>
+      <div class="err" id="mvErr"></div>
+      <div class="acts"><button class="pri" type="submit" id="mvSave">บันทึกรายการ</button></div>
+    </form>
+    <h3>ประวัติการเคลื่อนไหว</h3>
+    <ul class="hist" id="kHist"></ul>
+    <div class="acts"><button id="kPrice">ดูราคาร้านค้า</button><button id="kEdit">แก้ไขข้อมูลรายการ</button></div>
+  </div>
+</dialog>
+<datalist id="lLoc"></datalist><datalist id="lPerson"></datalist>
 <datalist id="lDays"><option value="7"><option value="15"><option value="30"><option value="45"><option value="60"><option value="90"></datalist>
 
 <dialog id="dForm">
@@ -336,8 +407,8 @@ function render(){
   const e=$('#empty');
   if(!rows.length){e.hidden=false;e.textContent=quotes.length?'ไม่พบสินค้าที่ตรงกับการค้นหา':(live?'ยังไม่มีข้อมูล กด “+ เพิ่มราคา” เพื่อเริ่มบันทึก':'กำลังโหลด…')}else e.hidden=true;
   const fill=(id,vals)=>$(id).innerHTML=[...new Set(vals.map(v=>String(v||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th')).map(v=>`<option value="${esc(v)}">`).join('');
-  fill('#lName',quotes.map(q=>q.name));fill('#lCat',['วัสดุสำนักงาน','อุปกรณ์ไอที','วัสดุทำความสะอาด','วัสดุก่อสร้าง','อาหารและเครื่องดื่ม',...quotes.map(q=>q.cat)]);
-  fill('#lUnit',['ชิ้น','กล่อง','รีม','แพ็ค','ขวด','ลิตร','กิโลกรัม','เครื่อง','ชุด',...quotes.map(q=>q.unit)]);fill('#lSup',[...sups]);
+  fill('#lName',quotes.map(q=>q.name));fill('#lCat',[...CATS,...quotes.map(q=>q.cat),...stock.map(i=>i.cat)]);
+  fill('#lUnit',['ชิ้น','กล่อง','รีม','แพ็ค','ขวด','ลิตร','กิโลกรัม','เครื่อง','ชุด','ก้อน','ถุง','คิว','ตร.ม.','แผ่น','แกลลอน','ถัง','ม้วน','เมตร','หลอด','ต้น','กระสอบ',...stock.map(i=>i.unit),...quotes.map(q=>q.unit)]);fill('#lSup',[...sups]);
   $('#addBtn').hidden=!canWrite;
   renderSup();
   if(openKey&&$('#dItem').open)showItem(openKey);
@@ -443,11 +514,117 @@ async function delSup(){
   try{const r=must(await sb.from('pd_suppliers').delete().eq('id',sEditing).select('id'));if(!r.length)throw new Error('เฉพาะแอดมิน');$('#dSup').close();toast('ลบร้านแล้ว (ราคาสินค้ายังอยู่)');await loadData()}catch(e){toast('ลบไม่สำเร็จ: '+e.message)}
 }
 function supHint(){const v=$('#fSup').value.trim(),s=v&&supOf(v);$('#fSupHint').textContent=!v?'':s?'เงื่อนไขชำระเงิน: '+termText(s)+(s.payNote&&s.pay!=='other'?' · '+s.payNote:''):'ยังไม่มีข้อมูลร้านนี้ เพิ่มได้ที่แท็บ “ร้านค้า / Supplier”'}
+
+// ---------- stock ----------
+let stock=[], skind='all', siEditing=null, openStock=null, moves=[];
+const CATS=['วัสดุก่อสร้าง (อิฐ หิน ปูน ทราย)','กระเบื้องและงานพื้นผนัง','สีและอุปกรณ์ทาสี','ไฟฟ้าและแสงสว่าง','ประปาและสุขภัณฑ์','สวนและภูมิทัศน์','น้ำยาและสารเคมี','วัสดุสำนักงาน','อุปกรณ์ไอที'];
+const KIND={consumable:'วัสดุสิ้นเปลือง',tool:'เครื่องมือ',equipment:'อุปกรณ์'};
+const KSTAT={ready:'พร้อมใช้',repair:'ส่งซ่อม',broken:'ชำรุด'};
+const qn=n=>Number(n).toLocaleString('th-TH',{maximumFractionDigits:2});
+const isLow=i=>Number(i.min_qty)>0&&Number(i.qty)<=Number(i.min_qty);
+function priceOf(i){
+  const g=groups().filter(x=>nk(x.name)===nk(i.name));if(!g.length)return null;
+  return (g.find(x=>nk(x.unit)===nk(i.unit))||g[0]).min;
+}
+function renderStock(){
+  const low=stock.filter(isLow).length;$('#sLow').textContent=low.toLocaleString('th-TH');
+  const cnt={all:stock.length,low};for(const i of stock)cnt[i.kind]=(cnt[i.kind]||0)+1;
+  $('#kchips').innerHTML=[['all','ทั้งหมด'],['consumable',KIND.consumable],['tool',KIND.tool],['equipment',KIND.equipment],['low','ใกล้หมด / ต้องสั่ง']]
+    .map(([k,l])=>`<button class="chip" data-k="${k}" aria-pressed="${k===skind}">${l}<small>${cnt[k]||0}</small></button>`).join('');
+  const kc=$('#kcat').value,cats=[...new Set(stock.map(i=>i.cat).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
+  $('#kcat').innerHTML='<option value="">ทุกหมวดหมู่</option>'+cats.map(c=>`<option value="${esc(c)}">${esc(c)} (${stock.filter(i=>i.cat===c).length})</option>`).join('');
+  $('#kcat').value=cats.includes(kc)?kc:'';const kcf=$('#kcat').value;
+  const q=$('#kq').value.trim().toLowerCase(), so=$('#ksort').value;
+  let rows=stock.filter(i=>(!kcf||i.cat===kcf)&&(skind==='all'||(skind==='low'?isLow(i):i.kind===skind))&&(!q||[i.code,i.name,i.cat,i.location,i.note].join(' ').toLowerCase().includes(q)))
+    .map(i=>{const p=priceOf(i);return {i,p,val:p?Number(p.price)*Number(i.qty):null}});
+  const r=x=>Number(x.i.min_qty)>0?Number(x.i.qty)/Number(x.i.min_qty):1e9;
+  rows.sort(so==='name'?(a,b)=>a.i.name.localeCompare(b.i.name,'th'):so==='code'?(a,b)=>String(a.i.code).localeCompare(String(b.i.code),'th'):so==='value'?(a,b)=>(b.val??-1)-(a.val??-1):(a,b)=>r(a)-r(b)||a.i.name.localeCompare(b.i.name,'th'));
+  $('#krows').innerHTML=rows.map(({i,p,val})=>`<tr data-sid="${esc(i.id)}" tabindex="0"><td><div class="nm">${esc(i.name)}</div><div class="cat">${[i.code,i.cat].filter(Boolean).map(esc).join(' · ')}</div></td>
+    <td>${KIND[i.kind]||''}</td><td class="r"><b class="num">${qn(i.qty)}</b> ${esc(i.unit)}${isLow(i)?'<div><span class="low">ต้องสั่งซื้อ</span></div>':''}</td>
+    <td class="r num">${Number(i.min_qty)>0?qn(i.min_qty):'—'}</td><td>${esc(i.location)}</td><td>${i.kind==='consumable'?'':esc(KSTAT[i.status]||'')}</td>
+    <td class="r">${p?`<span class="num">${baht(p.price)}</span><div class="best">${esc(p.supplier)} · มูลค่า ${baht(val)}</div>`:'<span class="cat">—</span>'}</td></tr>`).join('');
+  const e=$('#kEmpty');e.hidden=!!rows.length;e.textContent=stock.length?'ไม่พบรายการที่ตรงกับการค้นหา':'ยังไม่มีรายการสต๊อก กด “+ เพิ่มรายการ” เพื่อเริ่มบันทึก';
+  const tv=rows.reduce((a,x)=>a+(x.val||0),0);
+  $('#kSum').textContent=`${rows.length} รายการ`+(tv?` · มูลค่ารวมโดยประมาณ ${baht(tv)} บาท (จากราคาถูกสุดล่าสุด)`:'');
+  const fill=(id,vals)=>$(id).innerHTML=[...new Set(vals.map(v=>String(v||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th')).map(v=>`<option value="${esc(v)}">`).join('');
+  fill('#lLoc',stock.map(i=>i.location));fill('#lPerson',[...staff.map(s=>s.name),...moves.map(m=>m.person)]);
+  if(openStock&&$('#dK').open)showStock(openStock,false);
+}
+function siToggle(){const c=$('#siKind').value==='consumable';$('#siStatusW').hidden=c}
+function openSI(i={},id=null){
+  siEditing=id;$('#siTitle').textContent=id?'แก้ไขรายการสต๊อก':'เพิ่มรายการสต๊อก';
+  $('#siName').value=i.name||'';$('#siKind').value=i.kind||(skind in KIND?skind:'consumable');$('#siCode').value=i.code||'';$('#siCat').value=i.cat||'';
+  $('#siUnit').value=i.unit||'';$('#siMin').value=i.min_qty??0;$('#siLoc').value=i.location||'';$('#siStatus').value=i.status||'ready';$('#siNote').value=i.note||'';
+  $('#siQty').value=0;$('#siQtyW').hidden=!!id;$('#siErr').textContent='';siToggle();
+  const d=$('#siDel');d.hidden=!id||!isAdmin();d.dataset.sure='';d.textContent='ลบรายการนี้';
+  $('#dSI').showModal();setTimeout(()=>$('#siName').focus(),30);
+}
+async function saveSI(e){
+  e.preventDefault();$('#siErr').textContent='';
+  const d={name:$('#siName').value.trim(),kind:$('#siKind').value,code:$('#siCode').value.trim(),cat:$('#siCat').value.trim(),unit:$('#siUnit').value.trim(),
+    min_qty:Number($('#siMin').value)||0,location:$('#siLoc').value.trim(),status:$('#siKind').value==='consumable'?'ready':$('#siStatus').value,note:$('#siNote').value.trim()};
+  const q0=Number($('#siQty').value)||0;
+  if(!d.name||!d.unit){$('#siErr').textContent='กรอกชื่อและหน่วย';return}
+  if(d.min_qty<0||q0<0){$('#siErr').textContent='จำนวนต้องไม่ติดลบ';return}
+  $('#siSave').disabled=true;
+  try{
+    if(siEditing)must(await sb.from('pd_stock_items').update(d).eq('id',siEditing));
+    else{const row=must(await sb.from('pd_stock_items').insert(d).select('id').single());
+      if(q0>0)must(await sb.from('pd_stock_moves').insert({item_id:row.id,kind:'in',qty:q0,note:'ยอดยกมา'}))}
+    $('#dSI').close();toast(siEditing?'แก้ไขแล้ว':'เพิ่มรายการแล้ว');await loadData();
+  }catch(err){$('#siErr').textContent=err.code==='23505'?'รหัสนี้มีอยู่แล้ว':'บันทึกไม่สำเร็จ: '+err.message}
+  finally{$('#siSave').disabled=false}
+}
+async function delSI(){
+  const b=$('#siDel');if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='กดอีกครั้ง (ประวัติจะถูกลบด้วย)';return}
+  try{const r=must(await sb.from('pd_stock_items').delete().eq('id',siEditing).select('id'));if(!r.length)throw new Error('เฉพาะแอดมิน');
+    $('#dSI').close();$('#dK').close();toast('ลบรายการแล้ว');await loadData()}catch(e){$('#siErr').textContent='ลบไม่สำเร็จ: '+e.message}
+}
+function mvMode(){const k=document.querySelector('[name=mk]:checked').value;
+  $('#mvQtyL').textContent=k==='in'?'จำนวนที่รับเข้า *':k==='out'?'จำนวนที่เบิก *':'ยอดที่นับได้จริง *';
+  $('#mvPersonL').textContent=k==='in'?'ผู้รับของ':k==='out'?'ผู้เบิก / ผู้ยืม':'ผู้ตรวจนับ';}
+async function showStock(id,reload=true){
+  const i=stock.find(x=>x.id===id);if(!i){$('#dK').close();return}
+  openStock=id;$('#kName').textContent=i.name;
+  $('#kMeta').textContent=[KIND[i.kind],i.code,i.cat,i.location&&'ที่เก็บ '+i.location,i.kind!=='consumable'&&KSTAT[i.status]].filter(Boolean).join(' · ');
+  const p=priceOf(i);
+  $('#kKv').innerHTML=[['คงเหลือ',qn(i.qty)+' '+esc(i.unit)+(isLow(i)?' <span class="low">ต้องสั่งซื้อ</span>':'')],['จุดสั่งซื้อ',Number(i.min_qty)>0?qn(i.min_qty):'—'],
+    ['ราคาถูกสุดล่าสุด',p?baht(p.price):'—'],['มูลค่าคงเหลือ',p?baht(Number(p.price)*Number(i.qty)):'—']].map(([l,v])=>`<div><span>${l}</span><b class="num">${v}</b></div>`).join('');
+  $('#kEdit').hidden=false;$('#kPrice').hidden=!p;
+  if(!$('#dK').open){$('#mvfm').reset();mvMode();$('#mvErr').textContent='';$('#kHist').innerHTML='<li class="cat">กำลังโหลด…</li>';$('#dK').showModal()}
+  if(reload){const r=await sb.from('pd_stock_moves').select('*').eq('item_id',id).order('created_at',{ascending:false}).limit(200);moves=r.data||[]}
+  const L={in:'รับเข้า',out:'เบิกออก',adjust:'ปรับยอด'};
+  $('#kHist').innerHTML=moves.length?moves.map(m=>`<li><div><b class="${m.kind==='out'?'mvout':'mvin'}">${L[m.kind]} ${m.kind==='adjust'?'เป็น ':m.kind==='out'?'−':'+'}${qn(m.qty)}</b> <span class="cat">คงเหลือ ${qn(m.balance)}</span>
+    <div class="cat">${new Date(m.created_at).toLocaleString('th-TH',{day:'numeric',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'})}${m.person?' · '+esc(m.person):''}${m.ref?' · '+esc(m.ref):''}${m.note?' · '+esc(m.note):''}</div>
+    ${who(m.created_by)?`<div class="by">บันทึกโดย ${esc(who(m.created_by))}</div>`:''}</div><span></span></li>`).join(''):'<li class="cat">ยังไม่มีการเคลื่อนไหว</li>';
+}
+async function saveMove(e){
+  e.preventDefault();$('#mvErr').textContent='';
+  const kind=document.querySelector('[name=mk]:checked').value, qty=Number($('#mvQty').value);
+  if(!(qty>0)&&!(kind==='adjust'&&qty===0)){$('#mvErr').textContent='ใส่จำนวนให้ถูกต้อง';return}
+  const i=stock.find(x=>x.id===openStock);
+  if(kind==='out'&&i&&qty>Number(i.qty)){$('#mvErr').textContent=`เบิกได้ไม่เกิน ${qn(i.qty)} ${i.unit}`;return}
+  $('#mvSave').disabled=true;
+  try{must(await sb.from('pd_stock_moves').insert({item_id:openStock,kind,qty,person:$('#mvPerson').value.trim(),ref:$('#mvRef').value.trim(),note:$('#mvNote').value.trim()}));
+    $('#mvQty').value='';$('#mvRef').value='';$('#mvNote').value='';toast('บันทึกแล้ว');await loadData();await showStock(openStock)}
+  catch(err){$('#mvErr').textContent=/not enough stock/.test(err.message)?'ยอดคงเหลือไม่พอ (อาจมีคนเบิกไปก่อน)':'ไม่สำเร็จ: '+err.message}
+  finally{$('#mvSave').disabled=false}
+}
+function stockCSV(){
+  const h=['รหัส','ชื่อ','ประเภท','หมวดหมู่','คงเหลือ','หน่วย','จุดสั่งซื้อ','ต้องสั่งซื้อ','ที่เก็บ','สถานะ','ราคาถูกสุดล่าสุด','ร้าน','มูลค่า','หมายเหตุ'];
+  const c=v=>{v=String(v??'');return /[",\n\t]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  const rows=[...stock].sort((a,b)=>a.kind.localeCompare(b.kind)||a.name.localeCompare(b.name,'th')).map(i=>{const p=priceOf(i);
+    return [i.code,i.name,KIND[i.kind],i.cat,i.qty,i.unit,i.min_qty,isLow(i)?'ใช่':'',i.location,i.kind==='consumable'?'':KSTAT[i.status],p?p.price:'',p?p.supplier:'',p?(Number(p.price)*Number(i.qty)).toFixed(2):'',i.note]});
+  const txt='﻿'+[h,...rows].map(r=>r.map(c).join(',')).join('\r\n');
+  const u=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'}));
+  const l=document.createElement('a');l.href=u;l.download='สต๊อก-'+today()+'.csv';document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);
+}
+
 function tab(name){if(name==='staff'&&!isAdmin())name='price';
-  const v={price:'#vPrice',suppliers:'#vSup',staff:'#vStaff'},t={price:'#tPrice',suppliers:'#tSup',staff:'#tStaff'};
+  const v={price:'#vPrice',suppliers:'#vSup',stock:'#vStock',staff:'#vStaff'},t={price:'#tPrice',suppliers:'#tSup',stock:'#tStock',staff:'#tStaff'};
   for(const k in v){$(v[k]).hidden=k!==name;$(t[k]).setAttribute('aria-selected',k===name)}
   const h=name==='price'?'':name;try{if(location.hash.slice(1)!==h)location.hash=h}catch{}}
-const hashTab=()=>{const h=location.hash.slice(1);return h==='suppliers'||h==='staff'?h:'price'};
+const hashTab=()=>{const h=location.hash.slice(1);return ['suppliers','stock','staff'].includes(h)?h:'price'};
 
 function renderStaff(){
   $('#tStaff').hidden=!isAdmin();if(!isAdmin())return;
@@ -513,7 +690,17 @@ $('#addSup').onclick=()=>openSup();
 $('#sq').oninput=renderSup;$('#sTerm').onchange=renderSup;
 $('#fSup').addEventListener('input',supHint);
 $('#dForm').addEventListener('close',()=>{$('#fSupHint').textContent=''});
-$('#tPrice').onclick=()=>tab('price');$('#tSup').onclick=()=>tab('suppliers');$('#tStaff').onclick=()=>tab('staff');
+$('#tPrice').onclick=()=>tab('price');$('#tSup').onclick=()=>tab('suppliers');$('#tStaff').onclick=()=>tab('staff');$('#tStock').onclick=()=>tab('stock');
+$('#kq').oninput=renderStock;$('#kcat').onchange=renderStock;$('#ksort').onchange=renderStock;
+$('#kchips').onclick=e=>{const b=e.target.closest('[data-k]');if(b){skind=b.dataset.k;renderStock()}};
+$('#krows').onclick=e=>{const r=e.target.closest('tr[data-sid]');if(r)showStock(r.dataset.sid)};
+$('#krows').onkeydown=e=>{const r=e.target.closest('tr[data-sid]');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();showStock(r.dataset.sid)}};
+$('#addStock').onclick=()=>openSI();$('#kCsv').onclick=stockCSV;
+$('#sifm').addEventListener('submit',saveSI);$('#siKind').onchange=siToggle;$('#siDel').onclick=delSI;
+$('#mvfm').addEventListener('submit',saveMove);$('#mvfm').addEventListener('change',e=>{if(e.target.name==='mk')mvMode()});
+$('#dK').addEventListener('close',()=>{openStock=null});
+$('#kEdit').onclick=()=>{const i=stock.find(x=>x.id===openStock);if(i)openSI(i,i.id)};
+$('#kPrice').onclick=()=>{const i=stock.find(x=>x.id===openStock);if(!i)return;$('#dK').close();tab('price');$('#q').value=i.name;cat='ทั้งหมด';render();const g=groups().find(x=>nk(x.name)===nk(i.name));if(g)showItem(g.k)};
 window.addEventListener('hashchange',()=>tab(hashTab()));
 $('#addStaff').onclick=()=>{$('#stfm').reset();$('#stErr').textContent='';$('#dStaff').showModal()};
 $('#stfm').addEventListener('submit',saveStaff);$('#pwfm').addEventListener('submit',savePw);
@@ -535,16 +722,18 @@ $('#iSup').onclick=e=>{const t=e.target.closest('.term');if(!t)return;const nm=t
 
 const show=v=>{for(const id of ['vLogin','vNo','app'])$('#'+id).hidden=id!==v};
 async function loadData(){
-  const [q,sp,st]=await Promise.all([
+  const [q,sp,st,sk]=await Promise.all([
     sb.from('pd_quotes').select('*').order('date').limit(10000),
     sb.from('pd_suppliers').select('*').order('name'),
-    sb.from('pd_staff').select('user_id,email,name,role')]);
+    sb.from('pd_staff').select('user_id,email,name,role'),
+    sb.from('pd_stock_items').select('*').order('name')]);
   if(q.error||sp.error){$('#status').textContent='โหลดข้อมูลไม่สำเร็จ: '+((q.error||sp.error).message);return}
   quotes=q.data.map(r=>({...r,price:Number(r.price),at:Date.parse(r.created_at)||0}));
   suppliers=sp.data.map(r=>({...r,payNote:r.pay_note}));
   staff=st.data||[];
+  stock=(sk.data||[]).map(r=>({...r,qty:Number(r.qty),min_qty:Number(r.min_qty)}));
   live=true;$('#status').textContent='อัปเดตล่าสุด '+new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})+' · อัปเดตอัตโนมัติเมื่อมีคนแก้ไข';
-  render();renderStaff();
+  render();renderStaff();renderStock();
 }
 let reloadT=null;const soon=()=>{clearTimeout(reloadT);reloadT=setTimeout(loadData,400)};
 async function start(){
@@ -562,7 +751,8 @@ async function start(){
   const p=staff.find(s=>s.user_id===me.id);$('#uName').textContent=p?.name||me.email;
   tab(hashTab());
   if(!chan)chan=sb.channel('pd-live').on('postgres_changes',{event:'*',schema:'public',table:'pd_quotes'},soon)
-    .on('postgres_changes',{event:'*',schema:'public',table:'pd_suppliers'},soon).subscribe();
+    .on('postgres_changes',{event:'*',schema:'public',table:'pd_suppliers'},soon)
+    .on('postgres_changes',{event:'*',schema:'public',table:'pd_stock_items'},soon).subscribe();
 }
 sb.auth.onAuthStateChange(ev=>{if(ev==='SIGNED_OUT')location.reload()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&me&&myRole)soon()});
