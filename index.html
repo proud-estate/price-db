@@ -119,6 +119,15 @@ tr.grp:hover td{background:var(--line)}tr.grp .tw{display:inline-block;width:1em
 .ccard[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}.ccard[aria-pressed=true] span{color:inherit;opacity:.8}.ccard[aria-pressed=true] em{color:#ff8fb7}
 .ccard.mgr{border-style:dashed;color:var(--mute)}
 @media(max-width:600px){.catgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+tr.sgrp td{padding:6px 14px 6px 34px;font-size:13px;font-weight:700;color:var(--mute);background:var(--card);border-bottom:1px dashed var(--line)}
+#ksubchips{margin-top:-4px}
+@media(max-width:600px){.stack tr.sgrp{padding:0;border-bottom:0}.stack tr.sgrp td{padding:6px 14px}.stack tr.sgrp td::before{display:none}}
+.countbar{background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:14px}.countbar span{opacity:.85}
+.cnt .cin{min-height:40px;padding:6px 8px;width:100%;max-width:130px}.cnt td[data-l] input[data-f="loc"]{max-width:200px}
+.cnt td.r .cin{text-align:end;margin-inline-start:auto;display:block}
+.savebar{position:sticky;bottom:0;z-index:5;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;background:var(--card);border:1.5px solid var(--ink);border-radius:14px;padding:10px 12px;margin:-4px 0 12px;box-shadow:0 -6px 20px rgba(6,34,46,.12)}
+.savebar span{flex:1;font-size:14px;font-weight:600}
+@media(max-width:600px){.cnt .cin{max-width:none}.cnt td.r .cin{text-align:start;margin:0}}
 .x0{border:0;background:none;font-size:24px;line-height:1;padding:4px 10px}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
@@ -182,10 +191,18 @@ tr.grp:hover td{background:var(--line)}tr.grp .tw{display:inline-block;width:1em
     <input class="search" id="kq" type="search" placeholder="ค้นหารหัส ชื่อ หมวด หรือที่เก็บ" aria-label="ค้นหาสต๊อก">
     <select class="sort" id="kkind" aria-label="ประเภท"></select>
     <select class="sort" id="ksort" aria-label="เรียงลำดับ"><option value="low">ใกล้หมดก่อน</option><option value="name">ชื่อ ก–ฮ</option><option value="code">รหัส</option><option value="value">มูลค่าสูงสุด</option></select>
+    <button id="countBtn">นับสต๊อก</button>
     <button class="pri" id="addStock">+ เพิ่มรายการ</button>
   </div>
+  <div class="countbar" id="countHead" hidden><b>โหมดนับสต๊อก</b> <span>เลือกหมวดด้านล่าง แล้วกรอกจำนวนที่นับได้จริง ที่เก็บ และจุดสั่งซื้อ ช่องที่เว้นว่างจะไม่ถูกเปลี่ยน</span></div>
   <div class="catgrid" id="kcatchips" role="toolbar" aria-label="หมวดหมู่"></div>
-  <div class="tbl">
+  <div class="chips" id="ksubchips" role="toolbar" aria-label="กลุ่มย่อย" hidden></div>
+  <div class="tbl" id="countWrap" hidden>
+  <table class="stack cnt"><thead><tr><th>รายการ</th><th class="r">ในระบบ</th><th class="r">นับได้จริง</th><th>ที่เก็บ</th><th class="r">จุดสั่งซื้อ</th></tr></thead><tbody id="crows"></tbody></table>
+  <div class="empty" id="cEmpty" hidden></div>
+  </div>
+  <div class="savebar" id="countSave" hidden><span id="cInfo">ยังไม่มีการแก้ไข</span><button id="cClear">ล้างที่กรอก</button><button class="pri" id="cSaveBtn" disabled>บันทึกผลนับ</button></div>
+  <div class="tbl" id="listWrap">
   <table class="stack"><thead><tr><th>รายการ</th><th>ประเภท</th><th class="r">คงเหลือ</th><th class="r">จุดสั่งซื้อ</th><th>ที่เก็บ</th><th>สถานะ</th><th class="r">ราคาล่าสุด / มูลค่า</th></tr></thead><tbody id="krows"></tbody></table>
   <div class="empty" id="kEmpty" hidden></div>
   </div>
@@ -283,7 +300,8 @@ tr.grp:hover td{background:var(--line)}tr.grp .tw{display:inline-block;width:1em
   <div class="db"><div class="grid">
     <div class="full"><label for="siName">ชื่อวัสดุ / เครื่องมือ / อุปกรณ์ *</label><input id="siName" list="lName" required maxlength="120" autocomplete="off"><div class="hint">ใช้ชื่อเดียวกับในแท็บราคาสินค้า เพื่อให้ดึงราคาล่าสุดมาแสดง</div></div>
     <div><label for="siKind">ประเภท *</label><select id="siKind"><option value="consumable">วัสดุสิ้นเปลือง</option><option value="tool">เครื่องมือ</option><option value="equipment">อุปกรณ์</option></select></div>
-    <div><label for="siCode">รหัส</label><input id="siCode" maxlength="40" placeholder="เช่น MT-001"></div>
+    <div><label for="siCode">รหัส</label><input id="siCode" maxlength="40" placeholder="เว้นว่าง = สร้างให้อัตโนมัติ"></div>
+    <div><label for="siSub">กลุ่มย่อย</label><input id="siSub" list="lSub" maxlength="60" autocomplete="off" placeholder="เลือกหรือพิมพ์ใหม่"></div>
     <div><label for="siCat">หมวดหมู่</label><input id="siCat" list="lCat" maxlength="60" autocomplete="off" placeholder="เลือกหรือพิมพ์ใหม่"></div>
     <div><label for="siUnit">หน่วย *</label><input id="siUnit" list="lUnit" required maxlength="30" autocomplete="off"></div>
     <div id="siQtyW"><label for="siQty">ยอดยกมา</label><input id="siQty" type="number" inputmode="decimal" min="0" step="any" value="0"></div>
@@ -338,7 +356,7 @@ tr.grp:hover td{background:var(--line)}tr.grp .tw{display:inline-block;width:1em
     <p class="hint" id="catHint"></p>
   </div>
 </dialog>
-<datalist id="lLoc"></datalist><datalist id="lPerson"></datalist>
+<datalist id="lLoc"></datalist><datalist id="lSub"></datalist><datalist id="lPerson"></datalist>
 <datalist id="lDays"><option value="7"><option value="15"><option value="30"><option value="45"><option value="60"><option value="90"></datalist>
 
 <dialog id="dForm">
@@ -552,7 +570,7 @@ async function delSup(){
 function supHint(){const v=$('#fSup').value.trim(),s=v&&supOf(v);$('#fSupHint').textContent=!v?'':s?'เงื่อนไขชำระเงิน: '+termText(s)+(s.payNote&&s.pay!=='other'?' · '+s.payNote:''):'ยังไม่มีข้อมูลร้านนี้ เพิ่มได้ที่แท็บ “ร้านค้า / Supplier”'}
 
 // ---------- stock ----------
-let kcat='', kcollapsed=new Set();
+let kcat='', ksub='', kcollapsed=new Set();
 let stock=[], skind='all', siEditing=null, openStock=null, moves=[];
 let CATS=[];
 const KIND={consumable:'วัสดุสิ้นเปลือง',tool:'เครื่องมือ',equipment:'อุปกรณ์'};
@@ -574,7 +592,7 @@ function renderStock(){
   $('#kkind').innerHTML=[['all','ทุกประเภท'],['consumable',KIND.consumable],['tool',KIND.tool],['equipment',KIND.equipment],['low','เฉพาะใกล้หมด / ต้องสั่ง'],['check','เฉพาะเครื่องมือที่ต้องเช็ค']]
     .map(([k,l])=>`<option value="${k}"${k===skind?' selected':''}>${l} (${cnt[k]||0})</option>`).join('');
   const q=$('#kq').value.trim().toLowerCase(), so=$('#ksort').value;
-  const base=stock.filter(i=>(skind==='all'||(skind==='low'?isLow(i):skind==='check'?needCheck(i):i.kind===skind))&&(!q||[i.code,i.name,i.cat,i.location,i.note,i.supplier,i.bill_no].join(' ').toLowerCase().includes(q)));
+  const base=stock.filter(i=>(skind==='all'||(skind==='low'?isLow(i):skind==='check'?needCheck(i):i.kind===skind))&&(!q||[i.code,i.name,i.cat,i.subcat,i.location,i.note,i.supplier,i.bill_no].join(' ').toLowerCase().includes(q)));
   const NOCAT='ไม่ระบุหมวด',cc={};for(const i of base){const c=i.cat||NOCAT;cc[c]=(cc[c]||0)+1}
   const cats=[...new Set([...Object.keys(cc),...CATS])].sort((a,b)=>a.localeCompare(b,'th'));
   if(kcat&&!cats.includes(kcat))kcat='';
@@ -583,18 +601,28 @@ function renderStock(){
   const tot={n:base.length,low:base.filter(isLow).length,chk:base.filter(needCheck).length};
   $('#kcatchips').innerHTML=card('','ทุกหมวด',tot)+cats.filter(c=>cs[c]||c===kcat).map(c=>card(c,c,cs[c]||{n:0,low:0,chk:0})).join('')+
     '<button class="ccard mgr" data-catmgr><b>+ หมวดหมู่</b><span>เพิ่ม / แก้ไข</span></button>';
-  let rows=base.filter(i=>!kcat||(i.cat||NOCAT)===kcat).map(i=>{const p=unitPrice(i);return {i,p,val:p?p.price*Number(i.qty):null}});
+  const SUBNONE='ไม่ระบุกลุ่ม';
+  const inCat=base.filter(i=>kcat&&(i.cat||NOCAT)===kcat),subs={};for(const i of inCat){const k=i.subcat||SUBNONE;subs[k]=(subs[k]||0)+1}
+  if(ksub&&!subs[ksub])ksub='';
+  $('#ksubchips').hidden=!kcat||Object.keys(subs).length<2;
+  $('#ksubchips').innerHTML=kcat?`<button class="chip" data-ks="" aria-pressed="${!ksub}">ทุกกลุ่มย่อย<small>${inCat.length}</small></button>`+Object.keys(subs).sort((a,b)=>a===SUBNONE?1:b===SUBNONE?-1:a.localeCompare(b,'th')).map(k=>`<button class="chip" data-ks="${esc(k)}" aria-pressed="${k===ksub}">${esc(k)}<small>${subs[k]}</small></button>`).join(''):'';
+  let rows=base.filter(i=>(!kcat||(i.cat||NOCAT)===kcat)&&(!ksub||(i.subcat||SUBNONE)===ksub)).map(i=>{const p=unitPrice(i);return {i,p,val:p?p.price*Number(i.qty):null}});
   const r=x=>Number(x.i.min_qty)>0?Number(x.i.qty)/Number(x.i.min_qty):1e9;
   rows.sort(so==='name'?(a,b)=>a.i.name.localeCompare(b.i.name,'th'):so==='code'?(a,b)=>String(a.i.code).localeCompare(String(b.i.code),'th'):so==='value'?(a,b)=>(b.val??-1)-(a.val??-1):(a,b)=>r(a)-r(b)||a.i.name.localeCompare(b.i.name,'th'));
+  if(countMode){renderCount(rows)}
   const rowHtml=({i,p,val})=>`<tr data-sid="${esc(i.id)}" tabindex="0"><td><div class="nm">${esc(i.name)}</div>${i.code?`<div class="cat">${esc(i.code)}</div>`:''}</td>
     <td>${KIND[i.kind]||''}</td><td class="r"><b class="num">${qn(i.qty)}</b> ${esc(i.unit)}${isLow(i)?'<div><span class="low">ต้องสั่งซื้อ</span></div>':''}</td>
     <td class="r num">${Number(i.min_qty)>0?qn(i.min_qty):'—'}</td><td>${esc(i.location)}</td><td>${isAsset(i)?`${esc(KSTAT[i.status]||'')}<div class="best${needCheck(i)?' up':''}">${esc(checkTxt(i))}</div>`:''}</td>
     <td class="r">${p?`<span class="num">${baht(p.price)}</span><div class="best">${p.own?'ราคาซื้อ':esc(p.supplier)} · มูลค่า ${baht(val)}</div>`:'<span class="cat">—</span>'}</td></tr>`;
+  const subRows=xs=>{const m=new Map();for(const x of xs){const k=x.i.subcat||SUBNONE;if(!m.has(k))m.set(k,[]);m.get(k).push(x)}
+    const ks=[...m.keys()].sort((a,b)=>a===SUBNONE?1:b===SUBNONE?-1:a.localeCompare(b,'th'));
+    if(ks.length===1&&ks[0]===SUBNONE)return xs.map(rowHtml).join('');
+    return ks.map(k=>`<tr class="sgrp"><td colspan="7" data-l="">${esc(k)} <span class="cat">${m.get(k).length}</span></td></tr>`+m.get(k).map(rowHtml).join('')).join('')};
   const groupsK=new Map();for(const x of rows){const c=x.i.cat||NOCAT;if(!groupsK.has(c))groupsK.set(c,[]);groupsK.get(c).push(x)}
   const order=[...groupsK.keys()].sort((a,b)=>a===NOCAT?1:b===NOCAT?-1:a.localeCompare(b,'th'));
   $('#krows').innerHTML=order.map(c=>{const xs=groupsK.get(c),open=!kcollapsed.has(c)||kcat===c||!!q;
     const lowN=xs.filter(x=>isLow(x.i)).length,chkN=xs.filter(x=>needCheck(x.i)).length,v=xs.reduce((a,x)=>a+(x.val||0),0);
-    return `<tr class="grp" data-grp="${esc(c)}" tabindex="0" aria-expanded="${open}"><td colspan="7" data-l=""><span class="tw">${open?'▾':'▸'}</span> <b>${esc(c)}</b> <span class="cat">${xs.length} รายการ${lowN?` · <span class="up">ต้องสั่ง ${lowN}</span>`:''}${chkN?` · <span class="up">ต้องเช็ค ${chkN}</span>`:''}${v?' · มูลค่า '+baht(v):''}</span></td></tr>`+(open?xs.map(rowHtml).join(''):'')}).join('');
+    return `<tr class="grp" data-grp="${esc(c)}" tabindex="0" aria-expanded="${open}"><td colspan="7" data-l=""><span class="tw">${open?'▾':'▸'}</span> <b>${esc(c)}</b> <span class="cat">${xs.length} รายการ${lowN?` · <span class="up">ต้องสั่ง ${lowN}</span>`:''}${chkN?` · <span class="up">ต้องเช็ค ${chkN}</span>`:''}${v?' · มูลค่า '+baht(v):''}</span></td></tr>`+(open?subRows(xs):'')}).join('');
   const e=$('#kEmpty');e.hidden=!!rows.length;e.textContent=stock.length?'ไม่พบรายการที่ตรงกับการค้นหา':'ยังไม่มีรายการสต๊อก กด “+ เพิ่มรายการ” เพื่อเริ่มบันทึก';
   const tv=rows.reduce((a,x)=>a+(x.val||0),0);
   $('#kSum').textContent=`${rows.length} รายการ`+(tv?` · มูลค่ารวมโดยประมาณ ${baht(tv)} บาท (ราคาซื้อของเครื่องมือ หรือราคาถูกสุดล่าสุด)`:'');
@@ -602,10 +630,11 @@ function renderStock(){
   fill('#lLoc',stock.map(i=>i.location));fill('#lPerson',[...staff.map(s=>s.name),...moves.map(m=>m.person)]);
   if(openStock&&$('#dK').open)showStock(openStock,false);
 }
+function fillSub(){const c=$('#siCat').value.trim();$('#lSub').innerHTML=[...new Set(stock.filter(i=>i.cat===c).map(i=>i.subcat).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th')).map(v=>`<option value="${esc(v)}">`).join('')}
 function siToggle(){const c=$('#siKind').value==='consumable';$('#siStatusW').hidden=c;$('#siBuyW').hidden=c}
 function openSI(i={},id=null){
   siEditing=id;$('#siTitle').textContent=id?'แก้ไขรายการสต๊อก':'เพิ่มรายการสต๊อก';
-  $('#siName').value=i.name||'';$('#siKind').value=i.kind||(skind in KIND?skind:'consumable');$('#siCode').value=i.code||'';$('#siCat').value=i.cat||'';
+  $('#siName').value=i.name||'';$('#siKind').value=i.kind||(skind in KIND?skind:'consumable');$('#siCode').value=i.code||'';$('#siCat').value=i.cat||(kcat&&kcat!=='ไม่ระบุหมวด'?kcat:'');$('#siSub').value=i.subcat||ksub||'';fillSub();
   $('#siUnit').value=i.unit||'';$('#siMin').value=i.min_qty??0;$('#siLoc').value=i.location||'';$('#siStatus').value=i.status||'ready';$('#siNote').value=i.note||'';
   $('#siSup').value=i.supplier||'';$('#siBill').value=i.bill_no||'';$('#siDate').value=i.purchase_date||'';$('#siCost').value=i.unit_cost??'';
   $('#siQty').value=0;$('#siQtyW').hidden=!!id;$('#siErr').textContent='';siToggle();
@@ -614,7 +643,7 @@ function openSI(i={},id=null){
 }
 async function saveSI(e){
   e.preventDefault();$('#siErr').textContent='';
-  const d={name:$('#siName').value.trim(),kind:$('#siKind').value,code:$('#siCode').value.trim(),cat:$('#siCat').value.trim(),unit:$('#siUnit').value.trim(),
+  const d={name:$('#siName').value.trim(),kind:$('#siKind').value,code:$('#siCode').value.trim(),cat:$('#siCat').value.trim(),subcat:$('#siSub').value.trim(),unit:$('#siUnit').value.trim(),
     min_qty:Number($('#siMin').value)||0,location:$('#siLoc').value.trim(),status:$('#siKind').value==='consumable'?'ready':$('#siStatus').value,note:$('#siNote').value.trim()};
   if(d.kind!=='consumable'){const c=$('#siCost').value;Object.assign(d,{supplier:$('#siSup').value.trim(),bill_no:$('#siBill').value.trim(),purchase_date:$('#siDate').value||null,unit_cost:c===''?null:Number(c)})}
   const q0=Number($('#siQty').value)||0;
@@ -623,6 +652,7 @@ async function saveSI(e){
   $('#siSave').disabled=true;
   try{
     await ensureCat(d.cat);
+    if(siEditing&&!d.code)delete d.code;
     if(siEditing)must(await sb.from('pd_stock_items').update(d).eq('id',siEditing));
     else{const row=must(await sb.from('pd_stock_items').insert(d).select('id').single());
       if(q0>0)must(await sb.from('pd_stock_moves').insert({item_id:row.id,kind:'in',qty:q0,note:'ยอดยกมา'}))}
@@ -642,7 +672,7 @@ function mvMode(){const k=document.querySelector('[name=mk]:checked').value;cons
 async function showStock(id,reload=true){
   const i=stock.find(x=>x.id===id);if(!i){$('#dK').close();return}
   openStock=id;$('#kName').textContent=i.name;
-  $('#kMeta').textContent=[KIND[i.kind],i.code,i.cat,i.location&&'ที่เก็บ '+i.location,isAsset(i)&&KSTAT[i.status],
+  $('#kMeta').textContent=[KIND[i.kind],i.code,i.cat,i.subcat,i.location&&'ที่เก็บ '+i.location,isAsset(i)&&KSTAT[i.status],
     isAsset(i)&&i.supplier&&'ซื้อจาก '+i.supplier,isAsset(i)&&i.bill_no&&'บิล '+i.bill_no,isAsset(i)&&i.purchase_date&&'ซื้อ '+thDate(i.purchase_date)].filter(Boolean).join(' · ');
   $('#kCheck').hidden=!isAsset(i);$('#kChecked').textContent=checkTxt(i);$('#kChecked').className='cat'+(needCheck(i)?' up':'');
   const p=unitPrice(i);
@@ -673,10 +703,10 @@ async function saveMove(e){
   finally{$('#mvSave').disabled=false}
 }
 function stockCSV(){
-  const h=['รหัส','ชื่อ','ประเภท','หมวดหมู่','คงเหลือ','หน่วย','จุดสั่งซื้อ','ต้องสั่งซื้อ','ที่เก็บ','สถานะ','เช็คล่าสุด','ราคาต่อหน่วย','ร้าน','มูลค่า','เลขที่บิล','วันที่ซื้อ','หมายเหตุ'];
+  const h=['รหัส','ชื่อ','ประเภท','หมวดหมู่','กลุ่มย่อย','คงเหลือ','หน่วย','จุดสั่งซื้อ','ต้องสั่งซื้อ','ที่เก็บ','สถานะ','เช็คล่าสุด','ราคาต่อหน่วย','ร้าน','มูลค่า','เลขที่บิล','วันที่ซื้อ','หมายเหตุ'];
   const c=v=>{v=String(v??'');return /[",\n\t]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
-  const rows=[...stock].sort((a,b)=>a.kind.localeCompare(b.kind)||a.name.localeCompare(b.name,'th')).map(i=>{const p=unitPrice(i);
-    return [i.code,i.name,KIND[i.kind],i.cat,i.qty,i.unit,i.min_qty,isLow(i)?'ใช่':'',i.location,isAsset(i)?KSTAT[i.status]:'',i.last_checked||'',p?p.price:'',p?(p.own?i.supplier:p.supplier):'',p?(p.price*Number(i.qty)).toFixed(2):'',i.bill_no||'',i.purchase_date||'',i.note]});
+  const rows=[...stock].sort((a,b)=>String(a.code).localeCompare(String(b.code))).map(i=>{const p=unitPrice(i);
+    return [i.code,i.name,KIND[i.kind],i.cat,i.subcat||'',i.qty,i.unit,i.min_qty,isLow(i)?'ใช่':'',i.location,isAsset(i)?KSTAT[i.status]:'',i.last_checked||'',p?p.price:'',p?(p.own?i.supplier:p.supplier):'',p?(p.price*Number(i.qty)).toFixed(2):'',i.bill_no||'',i.purchase_date||'',i.note]});
   const txt='﻿'+[h,...rows].map(r=>r.map(c).join(',')).join('\r\n');
   const u=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'}));
   const l=document.createElement('a');l.href=u;l.download='สต๊อก-'+today()+'.csv';document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);
@@ -703,6 +733,51 @@ async function renCat(old){const n=$('#catRen').value.trim().replace(/\s+/g,' ')
   try{must(await sb.rpc('pd_rename_category',{p_old:old,p_new:n}));if(cat===old)cat=n;catEditing=null;toast('เปลี่ยนชื่อหมวดแล้ว');await loadData();renderCats()}catch(err){$('#catErr').textContent='ไม่สำเร็จ: '+err.message}}
 async function delCat(n,btn){if(btn.dataset.sure!=='1'){btn.dataset.sure='1';btn.textContent='ยืนยัน?';return}
   try{must(await sb.from('pd_categories').delete().eq('name',n));toast('ลบหมวดแล้ว');await loadData();renderCats()}catch(err){$('#catErr').textContent='ไม่สำเร็จ: '+err.message}}
+
+// ---------- stock count ----------
+let countMode=false;const draft=new Map();
+function draftOf(id){if(!draft.has(id))draft.set(id,{});return draft.get(id)}
+function changedRows(){const out=[];for(const [id,d] of draft){const i=stock.find(x=>x.id===id);if(!i)continue;
+  const ch={};if(d.q!==undefined&&d.q!==''&&Number(d.q)!==Number(i.qty))ch.q=Number(d.q);
+  if(d.loc!==undefined&&d.loc.trim()!==(i.location||''))ch.loc=d.loc.trim();
+  if(d.min!==undefined&&d.min!==''&&Number(d.min)!==Number(i.min_qty))ch.min=Number(d.min);
+  if(Object.keys(ch).length)out.push({i,ch})}return out}
+function countInfo(){const n=changedRows().length;$('#cInfo').textContent=n?`แก้ไขแล้ว ${n} รายการ (ยังไม่ได้บันทึก)`:'ยังไม่มีการแก้ไข';$('#cSaveBtn').disabled=!n}
+function renderCount(rows){
+  const ae=document.activeElement,keep=ae&&ae.classList&&ae.classList.contains('cin')?[ae.closest('tr').dataset.cid,ae.dataset.f,ae.selectionStart]:null;
+  const SUBNONE='ไม่ระบุกลุ่ม';let last=null;
+  $('#crows').innerHTML=rows.map(({i})=>{const d=draft.get(i.id)||{},sg=(i.cat||'')+'|'+(i.subcat||SUBNONE);
+    const head=sg!==last?(last=sg,`<tr class="sgrp"><td colspan="5" data-l="">${esc(i.cat||'ไม่ระบุหมวด')} · ${esc(i.subcat||SUBNONE)}</td></tr>`):'';
+    const diff=d.q!==undefined&&d.q!==''?Number(d.q)-Number(i.qty):null;
+    return head+`<tr data-cid="${esc(i.id)}"><td><div class="nm">${esc(i.name)}</div><div class="cat">${esc(i.code||'')} · ${esc(i.unit)}</div></td>
+    <td class="r num">${qn(i.qty)}</td>
+    <td class="r"><input class="cin" data-f="q" type="number" inputmode="decimal" min="0" step="any" value="${esc(d.q??'')}" placeholder="${qn(i.qty)}" aria-label="นับได้จริง ${esc(i.name)}">${diff?`<div class="chg ${diff<0?'up':'dn'}">${diff>0?'+':''}${qn(diff)}</div>`:''}</td>
+    <td><input class="cin" data-f="loc" list="lLoc" maxlength="80" value="${esc(d.loc??i.location??'')}" aria-label="ที่เก็บ ${esc(i.name)}"></td>
+    <td class="r"><input class="cin" data-f="min" type="number" inputmode="decimal" min="0" step="any" value="${esc(d.min??(Number(i.min_qty)||''))}" placeholder="0" aria-label="จุดสั่งซื้อ ${esc(i.name)}"></td></tr>`}).join('');
+  const e=$('#cEmpty');e.hidden=!!rows.length;e.textContent='ไม่มีรายการในหมวดนี้';countInfo();
+  if(keep){const el=document.querySelector(`#crows tr[data-cid="${CSS.escape(keep[0])}"] .cin[data-f="${keep[1]}"]`);if(el){el.focus();try{el.setSelectionRange(keep[2],keep[2])}catch{}}}
+}
+function setCountMode(on){
+  if(!on&&changedRows().length&&$('#countBtn').dataset.sure!=='1'){$('#countBtn').dataset.sure='1';$('#countBtn').textContent='ยังไม่ได้บันทึก กดอีกครั้งเพื่อออก';return}
+  countMode=on;if(!on)draft.clear();$('#countBtn').dataset.sure='';$('#countBtn').textContent=on?'กลับไปหน้ารายการ':'นับสต๊อก';
+  $('#countBtn').classList.toggle('pri',on);for(const id of ['countHead','countWrap','countSave'])$('#'+id).hidden=!on;$('#listWrap').hidden=on;$('#addStock').hidden=on;
+  if(on&&skind!=='all'){skind='all'}if(on){$('#ksort').value='code'}renderStock();
+}
+async function saveCount(){
+  const rows=changedRows();if(!rows.length)return;
+  const b=$('#cSaveBtn');b.disabled=true;let ok=0,fail=[];
+  for(const [n,{i,ch}] of rows.entries()){
+    $('#cInfo').textContent=`กำลังบันทึก ${n+1}/${rows.length}…`;
+    try{
+      if(ch.q!==undefined)must(await sb.from('pd_stock_moves').insert({item_id:i.id,kind:'adjust',qty:ch.q,note:'ตรวจนับสต๊อก'}));
+      const up={};if(ch.loc!==undefined)up.location=ch.loc;if(ch.min!==undefined)up.min_qty=ch.min;
+      if(Object.keys(up).length)must(await sb.from('pd_stock_items').update(up).eq('id',i.id));
+      draft.delete(i.id);ok++;
+    }catch(err){fail.push(i.name+': '+err.message)}
+  }
+  await loadData();toast(`บันทึกผลนับ ${ok} รายการ`+(fail.length?` · ไม่สำเร็จ ${fail.length}`:''));
+  if(fail.length)$('#cInfo').textContent='ไม่สำเร็จ: '+fail.slice(0,3).join(' / ');b.disabled=false;
+}
 
 function tab(name){if(name==='staff'&&!isAdmin())name='price';
   const v={price:'#vPrice',suppliers:'#vSup',stock:'#vStock',staff:'#vStaff'},t={price:'#tPrice',suppliers:'#tSup',stock:'#tStock',staff:'#tStaff'};
@@ -776,12 +851,20 @@ $('#fSup').addEventListener('input',supHint);
 $('#dForm').addEventListener('close',()=>{$('#fSupHint').textContent=''});
 $('#tPrice').onclick=()=>tab('price');$('#tSup').onclick=()=>tab('suppliers');$('#tStaff').onclick=()=>tab('staff');$('#tStock').onclick=()=>tab('stock');
 $('#kq').oninput=renderStock;
-$('#kcatchips').onclick=e=>{const b=e.target.closest('[data-kc]');if(b){kcat=b.dataset.kc;renderStock()}};$('#ksort').onchange=renderStock;
+$('#kcatchips').onclick=e=>{const b=e.target.closest('[data-kc]');if(b){kcat=b.dataset.kc;ksub='';renderStock()}};
+$('#ksubchips').onclick=e=>{const b=e.target.closest('[data-ks]');if(b){ksub=b.dataset.ks;renderStock()}};$('#ksort').onchange=renderStock;
 $('#kkind').onchange=e=>{skind=e.target.value;renderStock()};
 const togGrp=g=>{kcollapsed.has(g)?kcollapsed.delete(g):kcollapsed.add(g);renderStock()};
 $('#krows').onclick=e=>{const g=e.target.closest('tr[data-grp]');if(g)return togGrp(g.dataset.grp);const r=e.target.closest('tr[data-sid]');if(r)showStock(r.dataset.sid)};
 $('#krows').onkeydown=e=>{const g=e.target.closest('tr[data-grp]');if(g&&(e.key==='Enter'||e.key===' ')){e.preventDefault();return togGrp(g.dataset.grp)}const r=e.target.closest('tr[data-sid]');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();showStock(r.dataset.sid)}};
 $('#addStock').onclick=()=>openSI();
+$('#countBtn').onclick=()=>setCountMode(!countMode);
+$('#crows').addEventListener('input',e=>{const t=e.target.closest('.cin');if(!t)return;const tr=t.closest('tr'),id=tr.dataset.cid;draftOf(id)[t.dataset.f]=t.value;countInfo();
+  if(t.dataset.f==='q'){const i=stock.find(x=>x.id===id),td=t.parentElement;let dv=td.querySelector('.chg');const df=t.value===''?null:Number(t.value)-Number(i.qty);
+    if(!df){dv&&dv.remove();return}if(!dv){dv=document.createElement('div');td.appendChild(dv)}dv.className='chg '+(df<0?'up':'dn');dv.textContent=(df>0?'+':'')+qn(df)}});
+$('#crows').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList.contains('cin')){e.preventDefault();const all=[...document.querySelectorAll('#crows .cin[data-f="'+e.target.dataset.f+'"]')];const n=all[all.indexOf(e.target)+1];if(n){n.focus();n.select&&n.select()}}});
+$('#cSaveBtn').onclick=saveCount;$('#cClear').onclick=()=>{draft.clear();renderStock()};
+window.addEventListener('beforeunload',e=>{if(countMode&&changedRows().length){e.preventDefault();e.returnValue=''}});
 document.addEventListener('click',e=>{if(e.target.closest('[data-catmgr]'))openCats()});
 $('#catfm').addEventListener('submit',addCat);
 $('#catList').onclick=e=>{const a=e.target.closest('[data-cedit]'),r=e.target.closest('[data-cren]'),d=e.target.closest('[data-cdel]');
@@ -789,7 +872,7 @@ $('#catList').onclick=e=>{const a=e.target.closest('[data-cedit]'),r=e.target.cl
   if(e.target.closest('[data-ccancel]')){catEditing=null;renderCats()}
   if(r)renCat(r.dataset.cren);if(d)delCat(d.dataset.cdel,d)};
 $('#catList').onkeydown=e=>{if(e.key==='Enter'&&e.target.id==='catRen'){e.preventDefault();renCat(catEditing)}};$('#kCsv').onclick=stockCSV;
-$('#sifm').addEventListener('submit',saveSI);$('#siKind').onchange=siToggle;$('#siDel').onclick=delSI;
+$('#sifm').addEventListener('submit',saveSI);$('#siCat').addEventListener('input',fillSub);$('#siKind').onchange=siToggle;$('#siDel').onclick=delSI;
 $('#mvfm').addEventListener('submit',saveMove);
 $('#kCheck').onclick=e=>{const b=e.target.closest('[data-chk]');if(b)doCheck(b.dataset.chk,b)};$('#mvfm').addEventListener('change',e=>{if(e.target.name==='mk')mvMode()});
 $('#dK').addEventListener('close',()=>{openStock=null});
