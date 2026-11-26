@@ -102,6 +102,9 @@ label{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
 .low{display:inline-block;font-size:12px;font-weight:700;color:#fff;background:var(--acc);border-radius:6px;padding:1px 8px;margin-inline-start:6px;white-space:nowrap}
 .mvin{color:var(--ink)}.mvout{color:var(--acc)}
 #kHist li{grid-template-columns:minmax(0,1fr) auto}
+.chip.mgr{border-style:dashed;color:var(--mute)}
+#catList li{grid-template-columns:minmax(0,1fr) auto auto}
+#catList input{min-height:36px;padding:4px 8px}
 .x0{border:0;background:none;font-size:24px;line-height:1;padding:4px 10px}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
@@ -164,6 +167,7 @@ label{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
   <div class="bar">
     <input class="search" id="kq" type="search" placeholder="ค้นหารหัส ชื่อ หมวด หรือที่เก็บ" aria-label="ค้นหาสต๊อก">
     <select class="sort" id="kcat" aria-label="หมวดหมู่"><option value="">ทุกหมวดหมู่</option></select>
+    <button data-catmgr>จัดการหมวดหมู่</button>
     <select class="sort" id="ksort" aria-label="เรียงลำดับ"><option value="low">ใกล้หมดก่อน</option><option value="name">ชื่อ ก–ฮ</option><option value="code">รหัส</option><option value="value">มูลค่าสูงสุด</option></select>
     <button class="pri" id="addStock">+ เพิ่มรายการ</button>
   </div>
@@ -303,6 +307,16 @@ label{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
     <div class="acts"><button id="kPrice">ดูราคาร้านค้า</button><button id="kEdit">แก้ไขข้อมูลรายการ</button></div>
   </div>
 </dialog>
+<dialog id="dCat">
+  <div class="dh"><div><h2>หมวดหมู่</h2><div class="cat">ใช้ร่วมกันทั้งแท็บราคาสินค้าและสต๊อก</div></div><button type="button" class="x0" data-close aria-label="ปิด">×</button></div>
+  <div class="db">
+    <form id="catfm" class="mv"><label for="catNew">เพิ่มหมวดหมู่ใหม่</label>
+      <div style="display:flex;gap:8px"><input id="catNew" maxlength="60" placeholder="เช่น สุขภัณฑ์, ไม้และวงกบ" autocomplete="off"><button class="pri" type="submit" id="catAdd" style="flex:none">เพิ่ม</button></div>
+      <div class="err" id="catErr"></div></form>
+    <ul class="hist" id="catList"></ul>
+    <p class="hint" id="catHint"></p>
+  </div>
+</dialog>
 <datalist id="lLoc"></datalist><datalist id="lPerson"></datalist>
 <datalist id="lDays"><option value="7"><option value="15"><option value="30"><option value="45"><option value="60"><option value="90"></datalist>
 
@@ -312,7 +326,7 @@ label{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
   <div class="db">
     <div class="grid">
       <div class="full"><label for="fName">ชื่อสินค้า *</label><input id="fName" list="lName" required maxlength="120" autocomplete="off"></div>
-      <div><label for="fCat">หมวดหมู่ *</label><input id="fCat" list="lCat" required maxlength="60" autocomplete="off"></div>
+      <div><label for="fCat">หมวดหมู่ *</label><input id="fCat" list="lCat" required maxlength="60" autocomplete="off" placeholder="เลือกหรือพิมพ์หมวดใหม่"></div>
       <div><label for="fUnit">หน่วย *</label><input id="fUnit" list="lUnit" required maxlength="30" placeholder="เช่น รีม, กล่อง, ชิ้น" autocomplete="off"></div>
       <div><label for="fPrice">ราคาต่อหน่วย (บาท) *</label><input id="fPrice" type="number" inputmode="decimal" min="0" step="0.01" required></div>
       <div><label for="fDate">วันที่เสนอราคา *</label><input id="fDate" type="date" required></div>
@@ -390,9 +404,9 @@ function render(){
   $('#sQuotes').textContent=quotes.length.toLocaleString('th-TH');
   $('#sSup').textContent=sups.size.toLocaleString('th-TH');
   const cats={};for(const x of g)cats[x.cat]=(cats[x.cat]||0)+1;
-  const names=['ทั้งหมด',...Object.keys(cats).sort((a,b)=>a.localeCompare(b,'th'))];
+  const names=['ทั้งหมด',...[...new Set([...Object.keys(cats),...CATS])].sort((a,b)=>a.localeCompare(b,'th'))];
   if(!names.includes(cat))cat='ทั้งหมด';
-  $('#chips').innerHTML=names.map(n=>`<button class="chip" data-cat="${esc(n)}" aria-pressed="${n===cat}">${esc(n)}<small>${n==='ทั้งหมด'?g.length:cats[n]}</small></button>`).join('');
+  $('#chips').innerHTML=names.map(n=>`<button class="chip" data-cat="${esc(n)}" aria-pressed="${n===cat}">${esc(n)}<small>${n==='ทั้งหมด'?g.length:(cats[n]||0)}</small></button>`).join('')+'<button class="chip mgr" data-catmgr>+ หมวดหมู่ใหม่ / จัดการ</button>';
   const s=$('#q').value.trim().toLowerCase();
   const sv=$('#sup').value, supList=[...sups].sort((a,b)=>a.localeCompare(b,'th'));
   $('#sup').innerHTML='<option value="">ทุกร้านค้า</option>'+supList.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
@@ -455,6 +469,7 @@ async function save(e){
   if(!d.name||!d.cat||!d.unit||!(d.price>=0)||!d.date||!d.supplier){toast('กรอกข้อมูลที่มี * ให้ครบ');return}
   $('#fSave').disabled=true;
   try{
+    await ensureCat(d.cat);
     must(editing?await sb.from('pd_quotes').update(d).eq('id',editing):await sb.from('pd_quotes').insert(d));
     $('#dForm').close();toast(editing?'แก้ไขแล้ว':'บันทึกแล้ว');openKey=key(d);
     await loadData();
@@ -517,7 +532,7 @@ function supHint(){const v=$('#fSup').value.trim(),s=v&&supOf(v);$('#fSupHint').
 
 // ---------- stock ----------
 let stock=[], skind='all', siEditing=null, openStock=null, moves=[];
-const CATS=['วัสดุก่อสร้าง (อิฐ หิน ปูน ทราย)','กระเบื้องและงานพื้นผนัง','สีและอุปกรณ์ทาสี','ไฟฟ้าและแสงสว่าง','ประปาและสุขภัณฑ์','สวนและภูมิทัศน์','น้ำยาและสารเคมี','วัสดุสำนักงาน','อุปกรณ์ไอที'];
+let CATS=[];
 const KIND={consumable:'วัสดุสิ้นเปลือง',tool:'เครื่องมือ',equipment:'อุปกรณ์'};
 const KSTAT={ready:'พร้อมใช้',repair:'ส่งซ่อม',broken:'ชำรุด'};
 const qn=n=>Number(n).toLocaleString('th-TH',{maximumFractionDigits:2});
@@ -531,7 +546,7 @@ function renderStock(){
   const cnt={all:stock.length,low};for(const i of stock)cnt[i.kind]=(cnt[i.kind]||0)+1;
   $('#kchips').innerHTML=[['all','ทั้งหมด'],['consumable',KIND.consumable],['tool',KIND.tool],['equipment',KIND.equipment],['low','ใกล้หมด / ต้องสั่ง']]
     .map(([k,l])=>`<button class="chip" data-k="${k}" aria-pressed="${k===skind}">${l}<small>${cnt[k]||0}</small></button>`).join('');
-  const kc=$('#kcat').value,cats=[...new Set(stock.map(i=>i.cat).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
+  const kc=$('#kcat').value,cats=[...new Set([...stock.map(i=>i.cat).filter(Boolean),...CATS])].sort((a,b)=>a.localeCompare(b,'th'));
   $('#kcat').innerHTML='<option value="">ทุกหมวดหมู่</option>'+cats.map(c=>`<option value="${esc(c)}">${esc(c)} (${stock.filter(i=>i.cat===c).length})</option>`).join('');
   $('#kcat').value=cats.includes(kc)?kc:'';const kcf=$('#kcat').value;
   const q=$('#kq').value.trim().toLowerCase(), so=$('#ksort').value;
@@ -568,6 +583,7 @@ async function saveSI(e){
   if(d.min_qty<0||q0<0){$('#siErr').textContent='จำนวนต้องไม่ติดลบ';return}
   $('#siSave').disabled=true;
   try{
+    await ensureCat(d.cat);
     if(siEditing)must(await sb.from('pd_stock_items').update(d).eq('id',siEditing));
     else{const row=must(await sb.from('pd_stock_items').insert(d).select('id').single());
       if(q0>0)must(await sb.from('pd_stock_moves').insert({item_id:row.id,kind:'in',qty:q0,note:'ยอดยกมา'}))}
@@ -619,6 +635,28 @@ function stockCSV(){
   const u=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'}));
   const l=document.createElement('a');l.href=u;l.download='สต๊อก-'+today()+'.csv';document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);
 }
+
+// ---------- categories ----------
+let catEditing=null;
+function catCounts(){const c={};for(const q of groups())c[q.cat]=c[q.cat]||{p:0,s:0},c[q.cat].p++;for(const i of stock)if(i.cat)(c[i.cat]=c[i.cat]||{p:0,s:0}).s++;return c}
+function renderCats(){
+  const c=catCounts(),names=[...new Set([...CATS,...Object.keys(c)])].sort((a,b)=>a.localeCompare(b,'th'));
+  $('#catList').innerHTML=names.map(n=>{const k=c[n]||{p:0,s:0},used=k.p+k.s;
+    if(catEditing===n)return `<li><input id="catRen" value="${esc(n)}" maxlength="60" aria-label="ชื่อใหม่"><button class="x pri" data-cren="${esc(n)}">บันทึก</button><button class="x" data-ccancel>ยกเลิก</button></li>`;
+    return `<li><div><b>${esc(n)}</b><div class="cat">สินค้า ${k.p} · สต๊อก ${k.s}</div></div>${isAdmin()?`<button class="x" data-cedit="${esc(n)}">เปลี่ยนชื่อ</button>${used?'<span></span>':`<button class="x danger" data-cdel="${esc(n)}">ลบ</button>`}`:'<span></span><span></span>'}</li>`}).join('');
+  $('#catHint').textContent=isAdmin()?'เปลี่ยนชื่อเป็นชื่อหมวดที่มีอยู่แล้ว = รวมสองหมวดเข้าด้วยกัน · ลบได้เฉพาะหมวดที่ไม่มีสินค้าหรือสต๊อก':'เปลี่ยนชื่อหรือลบหมวดได้เฉพาะแอดมิน';
+}
+function openCats(){catEditing=null;$('#catNew').value='';$('#catErr').textContent='';renderCats();$('#dCat').showModal();setTimeout(()=>$('#catNew').focus(),30)}
+async function ensureCat(n){n=String(n||'').trim();if(!n||CATS.includes(n))return;await sb.from('pd_categories').upsert({name:n},{onConflict:'name',ignoreDuplicates:true});CATS.push(n)}
+async function addCat(e){e.preventDefault();const n=$('#catNew').value.trim().replace(/\s+/g,' ');$('#catErr').textContent='';
+  if(!n){$('#catErr').textContent='พิมพ์ชื่อหมวดหมู่';return}
+  if(CATS.some(c=>nk(c)===nk(n))){$('#catErr').textContent='มีหมวดนี้อยู่แล้ว';return}
+  $('#catAdd').disabled=true;try{must(await sb.from('pd_categories').insert({name:n}));$('#catNew').value='';toast('เพิ่มหมวด “'+n+'” แล้ว');await loadData();renderCats()}
+  catch(err){$('#catErr').textContent='ไม่สำเร็จ: '+err.message}finally{$('#catAdd').disabled=false}}
+async function renCat(old){const n=$('#catRen').value.trim().replace(/\s+/g,' ');if(!n||n===old){catEditing=null;renderCats();return}
+  try{must(await sb.rpc('pd_rename_category',{p_old:old,p_new:n}));if(cat===old)cat=n;catEditing=null;toast('เปลี่ยนชื่อหมวดแล้ว');await loadData();renderCats()}catch(err){$('#catErr').textContent='ไม่สำเร็จ: '+err.message}}
+async function delCat(n,btn){if(btn.dataset.sure!=='1'){btn.dataset.sure='1';btn.textContent='ยืนยัน?';return}
+  try{must(await sb.from('pd_categories').delete().eq('name',n));toast('ลบหมวดแล้ว');await loadData();renderCats()}catch(err){$('#catErr').textContent='ไม่สำเร็จ: '+err.message}}
 
 function tab(name){if(name==='staff'&&!isAdmin())name='price';
   const v={price:'#vPrice',suppliers:'#vSup',stock:'#vStock',staff:'#vStaff'},t={price:'#tPrice',suppliers:'#tSup',stock:'#tStock',staff:'#tStaff'};
@@ -695,7 +733,14 @@ $('#kq').oninput=renderStock;$('#kcat').onchange=renderStock;$('#ksort').onchang
 $('#kchips').onclick=e=>{const b=e.target.closest('[data-k]');if(b){skind=b.dataset.k;renderStock()}};
 $('#krows').onclick=e=>{const r=e.target.closest('tr[data-sid]');if(r)showStock(r.dataset.sid)};
 $('#krows').onkeydown=e=>{const r=e.target.closest('tr[data-sid]');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();showStock(r.dataset.sid)}};
-$('#addStock').onclick=()=>openSI();$('#kCsv').onclick=stockCSV;
+$('#addStock').onclick=()=>openSI();
+document.addEventListener('click',e=>{if(e.target.closest('[data-catmgr]'))openCats()});
+$('#catfm').addEventListener('submit',addCat);
+$('#catList').onclick=e=>{const a=e.target.closest('[data-cedit]'),r=e.target.closest('[data-cren]'),d=e.target.closest('[data-cdel]');
+  if(a){catEditing=a.dataset.cedit;renderCats();setTimeout(()=>$('#catRen')?.select(),20)}
+  if(e.target.closest('[data-ccancel]')){catEditing=null;renderCats()}
+  if(r)renCat(r.dataset.cren);if(d)delCat(d.dataset.cdel,d)};
+$('#catList').onkeydown=e=>{if(e.key==='Enter'&&e.target.id==='catRen'){e.preventDefault();renCat(catEditing)}};$('#kCsv').onclick=stockCSV;
 $('#sifm').addEventListener('submit',saveSI);$('#siKind').onchange=siToggle;$('#siDel').onclick=delSI;
 $('#mvfm').addEventListener('submit',saveMove);$('#mvfm').addEventListener('change',e=>{if(e.target.name==='mk')mvMode()});
 $('#dK').addEventListener('close',()=>{openStock=null});
@@ -722,15 +767,17 @@ $('#iSup').onclick=e=>{const t=e.target.closest('.term');if(!t)return;const nm=t
 
 const show=v=>{for(const id of ['vLogin','vNo','app'])$('#'+id).hidden=id!==v};
 async function loadData(){
-  const [q,sp,st,sk]=await Promise.all([
+  const [q,sp,st,sk,ct]=await Promise.all([
     sb.from('pd_quotes').select('*').order('date').limit(10000),
     sb.from('pd_suppliers').select('*').order('name'),
     sb.from('pd_staff').select('user_id,email,name,role'),
-    sb.from('pd_stock_items').select('*').order('name')]);
+    sb.from('pd_stock_items').select('*').order('name'),
+    sb.from('pd_categories').select('name')]);
   if(q.error||sp.error){$('#status').textContent='โหลดข้อมูลไม่สำเร็จ: '+((q.error||sp.error).message);return}
   quotes=q.data.map(r=>({...r,price:Number(r.price),at:Date.parse(r.created_at)||0}));
   suppliers=sp.data.map(r=>({...r,payNote:r.pay_note}));
   staff=st.data||[];
+  CATS=(ct.data||[]).map(r=>r.name);
   stock=(sk.data||[]).map(r=>({...r,qty:Number(r.qty),min_qty:Number(r.min_qty)}));
   live=true;$('#status').textContent='อัปเดตล่าสุด '+new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})+' · อัปเดตอัตโนมัติเมื่อมีคนแก้ไข';
   render();renderStaff();renderStock();
@@ -752,7 +799,8 @@ async function start(){
   tab(hashTab());
   if(!chan)chan=sb.channel('pd-live').on('postgres_changes',{event:'*',schema:'public',table:'pd_quotes'},soon)
     .on('postgres_changes',{event:'*',schema:'public',table:'pd_suppliers'},soon)
-    .on('postgres_changes',{event:'*',schema:'public',table:'pd_stock_items'},soon).subscribe();
+    .on('postgres_changes',{event:'*',schema:'public',table:'pd_stock_items'},soon)
+    .on('postgres_changes',{event:'*',schema:'public',table:'pd_categories'},soon).subscribe();
 }
 sb.auth.onAuthStateChange(ev=>{if(ev==='SIGNED_OUT')location.reload()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&me&&myRole)soon()});
