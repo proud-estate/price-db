@@ -109,6 +109,10 @@ fieldset.buy{border:1.5px dashed var(--line);border-radius:12px;padding:8px 12px
 fieldset.buy legend{font-size:14px;font-weight:600;padding:0 6px}
 .chk .seg button{min-height:40px}
 .best.up,.cat.up{color:var(--acc)}
+tr.grp td{background:var(--soft);padding:10px 14px;border-bottom:1.5px solid var(--line);cursor:pointer}
+tr.grp:hover td{background:var(--line)}tr.grp .tw{display:inline-block;width:1em}
+#kcatchips .chip{font-size:14px;padding:4px 12px;min-height:38px}
+@media(max-width:600px){.stack tr.grp{padding:0;border-bottom:0}.stack tr.grp td{padding:10px 14px}.stack tr.grp td::before{display:none}}
 .x0{border:0;background:none;font-size:24px;line-height:1;padding:4px 10px}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
@@ -170,12 +174,12 @@ fieldset.buy legend{font-size:14px;font-weight:600;padding:0 6px}
 <section id="vStock" hidden>
   <div class="bar">
     <input class="search" id="kq" type="search" placeholder="ค้นหารหัส ชื่อ หมวด หรือที่เก็บ" aria-label="ค้นหาสต๊อก">
-    <select class="sort" id="kcat" aria-label="หมวดหมู่"><option value="">ทุกหมวดหมู่</option></select>
     <button data-catmgr>จัดการหมวดหมู่</button>
     <select class="sort" id="ksort" aria-label="เรียงลำดับ"><option value="low">ใกล้หมดก่อน</option><option value="name">ชื่อ ก–ฮ</option><option value="code">รหัส</option><option value="value">มูลค่าสูงสุด</option></select>
     <button class="pri" id="addStock">+ เพิ่มรายการ</button>
   </div>
   <div class="chips" id="kchips" role="toolbar" aria-label="ประเภท"></div>
+  <div class="chips" id="kcatchips" role="toolbar" aria-label="หมวดหมู่"></div>
   <div class="tbl">
   <table class="stack"><thead><tr><th>รายการ</th><th>ประเภท</th><th class="r">คงเหลือ</th><th class="r">จุดสั่งซื้อ</th><th>ที่เก็บ</th><th>สถานะ</th><th class="r">ราคาล่าสุด / มูลค่า</th></tr></thead><tbody id="krows"></tbody></table>
   <div class="empty" id="kEmpty" hidden></div>
@@ -543,6 +547,7 @@ async function delSup(){
 function supHint(){const v=$('#fSup').value.trim(),s=v&&supOf(v);$('#fSupHint').textContent=!v?'':s?'เงื่อนไขชำระเงิน: '+termText(s)+(s.payNote&&s.pay!=='other'?' · '+s.payNote:''):'ยังไม่มีข้อมูลร้านนี้ เพิ่มได้ที่แท็บ “ร้านค้า / Supplier”'}
 
 // ---------- stock ----------
+let kcat='', kcollapsed=new Set();
 let stock=[], skind='all', siEditing=null, openStock=null, moves=[];
 let CATS=[];
 const KIND={consumable:'วัสดุสิ้นเปลือง',tool:'เครื่องมือ',equipment:'อุปกรณ์'};
@@ -563,18 +568,26 @@ function renderStock(){
   const cnt={all:stock.length,low,check:stock.filter(needCheck).length};for(const i of stock)cnt[i.kind]=(cnt[i.kind]||0)+1;
   $('#kchips').innerHTML=[['all','ทั้งหมด'],['consumable',KIND.consumable],['tool',KIND.tool],['equipment',KIND.equipment],['low','ใกล้หมด / ต้องสั่ง'],['check','เครื่องมือที่ต้องเช็ค']]
     .map(([k,l])=>`<button class="chip" data-k="${k}" aria-pressed="${k===skind}">${l}<small>${cnt[k]||0}</small></button>`).join('');
-  const kc=$('#kcat').value,cats=[...new Set([...stock.map(i=>i.cat).filter(Boolean),...CATS])].sort((a,b)=>a.localeCompare(b,'th'));
-  $('#kcat').innerHTML='<option value="">ทุกหมวดหมู่</option>'+cats.map(c=>`<option value="${esc(c)}">${esc(c)} (${stock.filter(i=>i.cat===c).length})</option>`).join('');
-  $('#kcat').value=cats.includes(kc)?kc:'';const kcf=$('#kcat').value;
   const q=$('#kq').value.trim().toLowerCase(), so=$('#ksort').value;
-  let rows=stock.filter(i=>(!kcf||i.cat===kcf)&&(skind==='all'||(skind==='low'?isLow(i):skind==='check'?needCheck(i):i.kind===skind))&&(!q||[i.code,i.name,i.cat,i.location,i.note,i.supplier,i.bill_no].join(' ').toLowerCase().includes(q)))
-    .map(i=>{const p=unitPrice(i);return {i,p,val:p?p.price*Number(i.qty):null}});
+  const base=stock.filter(i=>(skind==='all'||(skind==='low'?isLow(i):skind==='check'?needCheck(i):i.kind===skind))&&(!q||[i.code,i.name,i.cat,i.location,i.note,i.supplier,i.bill_no].join(' ').toLowerCase().includes(q)));
+  const NOCAT='ไม่ระบุหมวด',cc={};for(const i of base){const c=i.cat||NOCAT;cc[c]=(cc[c]||0)+1}
+  const cats=[...new Set([...Object.keys(cc),...CATS])].sort((a,b)=>a.localeCompare(b,'th'));
+  if(kcat&&!cats.includes(kcat))kcat='';
+  $('#kcatchips').innerHTML=`<button class="chip" data-kc="" aria-pressed="${!kcat}">ทุกหมวด<small>${base.length}</small></button>`+
+    cats.filter(c=>cc[c]||c===kcat).map(c=>`<button class="chip" data-kc="${esc(c)}" aria-pressed="${c===kcat}">${esc(c)}<small>${cc[c]||0}</small></button>`).join('')+
+    '<button class="chip mgr" data-catmgr>+ หมวดหมู่</button>';
+  let rows=base.filter(i=>!kcat||(i.cat||NOCAT)===kcat).map(i=>{const p=unitPrice(i);return {i,p,val:p?p.price*Number(i.qty):null}});
   const r=x=>Number(x.i.min_qty)>0?Number(x.i.qty)/Number(x.i.min_qty):1e9;
   rows.sort(so==='name'?(a,b)=>a.i.name.localeCompare(b.i.name,'th'):so==='code'?(a,b)=>String(a.i.code).localeCompare(String(b.i.code),'th'):so==='value'?(a,b)=>(b.val??-1)-(a.val??-1):(a,b)=>r(a)-r(b)||a.i.name.localeCompare(b.i.name,'th'));
-  $('#krows').innerHTML=rows.map(({i,p,val})=>`<tr data-sid="${esc(i.id)}" tabindex="0"><td><div class="nm">${esc(i.name)}</div><div class="cat">${[i.code,i.cat].filter(Boolean).map(esc).join(' · ')}</div></td>
+  const rowHtml=({i,p,val})=>`<tr data-sid="${esc(i.id)}" tabindex="0"><td><div class="nm">${esc(i.name)}</div>${i.code?`<div class="cat">${esc(i.code)}</div>`:''}</td>
     <td>${KIND[i.kind]||''}</td><td class="r"><b class="num">${qn(i.qty)}</b> ${esc(i.unit)}${isLow(i)?'<div><span class="low">ต้องสั่งซื้อ</span></div>':''}</td>
     <td class="r num">${Number(i.min_qty)>0?qn(i.min_qty):'—'}</td><td>${esc(i.location)}</td><td>${isAsset(i)?`${esc(KSTAT[i.status]||'')}<div class="best${needCheck(i)?' up':''}">${esc(checkTxt(i))}</div>`:''}</td>
-    <td class="r">${p?`<span class="num">${baht(p.price)}</span><div class="best">${p.own?'ราคาซื้อ':esc(p.supplier)} · มูลค่า ${baht(val)}</div>`:'<span class="cat">—</span>'}</td></tr>`).join('');
+    <td class="r">${p?`<span class="num">${baht(p.price)}</span><div class="best">${p.own?'ราคาซื้อ':esc(p.supplier)} · มูลค่า ${baht(val)}</div>`:'<span class="cat">—</span>'}</td></tr>`;
+  const groupsK=new Map();for(const x of rows){const c=x.i.cat||NOCAT;if(!groupsK.has(c))groupsK.set(c,[]);groupsK.get(c).push(x)}
+  const order=[...groupsK.keys()].sort((a,b)=>a===NOCAT?1:b===NOCAT?-1:a.localeCompare(b,'th'));
+  $('#krows').innerHTML=order.map(c=>{const xs=groupsK.get(c),open=!kcollapsed.has(c)||kcat===c||!!q;
+    const lowN=xs.filter(x=>isLow(x.i)).length,chkN=xs.filter(x=>needCheck(x.i)).length,v=xs.reduce((a,x)=>a+(x.val||0),0);
+    return `<tr class="grp" data-grp="${esc(c)}" tabindex="0" aria-expanded="${open}"><td colspan="7" data-l=""><span class="tw">${open?'▾':'▸'}</span> <b>${esc(c)}</b> <span class="cat">${xs.length} รายการ${lowN?` · <span class="up">ต้องสั่ง ${lowN}</span>`:''}${chkN?` · <span class="up">ต้องเช็ค ${chkN}</span>`:''}${v?' · มูลค่า '+baht(v):''}</span></td></tr>`+(open?xs.map(rowHtml).join(''):'')}).join('');
   const e=$('#kEmpty');e.hidden=!!rows.length;e.textContent=stock.length?'ไม่พบรายการที่ตรงกับการค้นหา':'ยังไม่มีรายการสต๊อก กด “+ เพิ่มรายการ” เพื่อเริ่มบันทึก';
   const tv=rows.reduce((a,x)=>a+(x.val||0),0);
   $('#kSum').textContent=`${rows.length} รายการ`+(tv?` · มูลค่ารวมโดยประมาณ ${baht(tv)} บาท (ราคาซื้อของเครื่องมือ หรือราคาถูกสุดล่าสุด)`:'');
@@ -755,10 +768,12 @@ $('#sq').oninput=renderSup;$('#sTerm').onchange=renderSup;
 $('#fSup').addEventListener('input',supHint);
 $('#dForm').addEventListener('close',()=>{$('#fSupHint').textContent=''});
 $('#tPrice').onclick=()=>tab('price');$('#tSup').onclick=()=>tab('suppliers');$('#tStaff').onclick=()=>tab('staff');$('#tStock').onclick=()=>tab('stock');
-$('#kq').oninput=renderStock;$('#kcat').onchange=renderStock;$('#ksort').onchange=renderStock;
+$('#kq').oninput=renderStock;
+$('#kcatchips').onclick=e=>{const b=e.target.closest('[data-kc]');if(b){kcat=b.dataset.kc;renderStock()}};$('#ksort').onchange=renderStock;
 $('#kchips').onclick=e=>{const b=e.target.closest('[data-k]');if(b){skind=b.dataset.k;renderStock()}};
-$('#krows').onclick=e=>{const r=e.target.closest('tr[data-sid]');if(r)showStock(r.dataset.sid)};
-$('#krows').onkeydown=e=>{const r=e.target.closest('tr[data-sid]');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();showStock(r.dataset.sid)}};
+const togGrp=g=>{kcollapsed.has(g)?kcollapsed.delete(g):kcollapsed.add(g);renderStock()};
+$('#krows').onclick=e=>{const g=e.target.closest('tr[data-grp]');if(g)return togGrp(g.dataset.grp);const r=e.target.closest('tr[data-sid]');if(r)showStock(r.dataset.sid)};
+$('#krows').onkeydown=e=>{const g=e.target.closest('tr[data-grp]');if(g&&(e.key==='Enter'||e.key===' ')){e.preventDefault();return togGrp(g.dataset.grp)}const r=e.target.closest('tr[data-sid]');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();showStock(r.dataset.sid)}};
 $('#addStock').onclick=()=>openSI();
 document.addEventListener('click',e=>{if(e.target.closest('[data-catmgr]'))openCats()});
 $('#catfm').addEventListener('submit',addCat);
