@@ -105,6 +105,10 @@ label{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
 .chip.mgr{border-style:dashed;color:var(--mute)}
 #catList li{grid-template-columns:minmax(0,1fr) auto auto}
 #catList input{min-height:36px;padding:4px 8px}
+fieldset.buy{border:1.5px dashed var(--line);border-radius:12px;padding:8px 12px 12px;margin:0}
+fieldset.buy legend{font-size:14px;font-weight:600;padding:0 6px}
+.chk .seg button{min-height:40px}
+.best.up,.cat.up{color:var(--acc)}
 .x0{border:0;background:none;font-size:24px;line-height:1;padding:4px 10px}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
@@ -277,6 +281,12 @@ label{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
     <div><label for="siMin">จุดสั่งซื้อ (เตือนเมื่อเหลือไม่เกิน)</label><input id="siMin" type="number" inputmode="decimal" min="0" step="any" value="0"></div>
     <div><label for="siLoc">ที่เก็บ</label><input id="siLoc" list="lLoc" maxlength="80" placeholder="เช่น คลัง A ชั้น 2"></div>
     <div id="siStatusW"><label for="siStatus">สถานะ</label><select id="siStatus"><option value="ready">พร้อมใช้</option><option value="repair">ส่งซ่อม</option><option value="broken">ชำรุด</option></select></div>
+    <fieldset id="siBuyW" class="full buy"><legend>ข้อมูลการซื้อ (เครื่องมือ / อุปกรณ์)</legend><div class="grid">
+      <div><label for="siSup">ซื้อจากร้าน</label><input id="siSup" list="lSup" maxlength="120" autocomplete="off"></div>
+      <div><label for="siBill">เลขที่บิล</label><input id="siBill" maxlength="60"></div>
+      <div><label for="siDate">วันที่ซื้อ</label><input id="siDate" type="date"></div>
+      <div><label for="siCost">ราคาต่อหน่วย (บาท)</label><input id="siCost" type="number" inputmode="decimal" min="0" step="0.01"></div>
+    </div></fieldset>
     <div class="full"><label for="siNote">หมายเหตุ</label><textarea id="siNote" rows="2" maxlength="300"></textarea></div>
   </div>
   <div class="err" id="siErr"></div>
@@ -287,10 +297,12 @@ label{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
   <div class="dh"><div><h2 id="kName"></h2><div class="cat" id="kMeta"></div></div><button type="button" class="x0" data-close aria-label="ปิด">×</button></div>
   <div class="db">
     <div class="kv" id="kKv"></div>
+    <div class="mv chk" id="kCheck"><b>เช็คของ</b> <span class="cat" id="kChecked"></span>
+      <div class="seg" style="margin-bottom:0"><button type="button" class="pri" data-chk="ready">เช็คแล้ว: พร้อมใช้</button><button type="button" data-chk="repair">ส่งซ่อม</button><button type="button" class="danger" data-chk="broken">ชำรุด</button></div></div>
     <form id="mvfm" class="mv">
       <div class="seg" role="radiogroup" aria-label="ประเภทรายการ">
-        <label><input type="radio" name="mk" value="out" checked><span>เบิกออก</span></label>
-        <label><input type="radio" name="mk" value="in"><span>รับเข้า</span></label>
+        <label><input type="radio" name="mk" value="out" checked><span id="mkOut">เบิกออก</span></label>
+        <label><input type="radio" name="mk" value="in"><span id="mkIn">รับเข้า</span></label>
         <label><input type="radio" name="mk" value="adjust"><span>ปรับยอด (นับจริง)</span></label>
       </div>
       <div class="grid">
@@ -537,39 +549,45 @@ const KIND={consumable:'วัสดุสิ้นเปลือง',tool:'เ
 const KSTAT={ready:'พร้อมใช้',repair:'ส่งซ่อม',broken:'ชำรุด'};
 const qn=n=>Number(n).toLocaleString('th-TH',{maximumFractionDigits:2});
 const isLow=i=>Number(i.min_qty)>0&&Number(i.qty)<=Number(i.min_qty);
+const CHECK_DAYS=30;
+const isAsset=i=>i.kind!=='consumable';
+const needCheck=i=>isAsset(i)&&(!i.last_checked||(Date.now()-new Date(i.last_checked+'T00:00:00'))/864e5>CHECK_DAYS);
+function unitPrice(i){if(isAsset(i)&&i.unit_cost!=null)return{price:Number(i.unit_cost),supplier:i.supplier||'',own:true};const p=priceOf(i);return p?{price:Number(p.price),supplier:p.supplier}:null}
+const checkTxt=i=>i.last_checked?'เช็คล่าสุด '+thDate(i.last_checked)+(who(i.checked_by)?' โดย '+who(i.checked_by):''):'ยังไม่เคยเช็ค';
 function priceOf(i){
   const g=groups().filter(x=>nk(x.name)===nk(i.name));if(!g.length)return null;
   return (g.find(x=>nk(x.unit)===nk(i.unit))||g[0]).min;
 }
 function renderStock(){
   const low=stock.filter(isLow).length;$('#sLow').textContent=low.toLocaleString('th-TH');
-  const cnt={all:stock.length,low};for(const i of stock)cnt[i.kind]=(cnt[i.kind]||0)+1;
-  $('#kchips').innerHTML=[['all','ทั้งหมด'],['consumable',KIND.consumable],['tool',KIND.tool],['equipment',KIND.equipment],['low','ใกล้หมด / ต้องสั่ง']]
+  const cnt={all:stock.length,low,check:stock.filter(needCheck).length};for(const i of stock)cnt[i.kind]=(cnt[i.kind]||0)+1;
+  $('#kchips').innerHTML=[['all','ทั้งหมด'],['consumable',KIND.consumable],['tool',KIND.tool],['equipment',KIND.equipment],['low','ใกล้หมด / ต้องสั่ง'],['check','เครื่องมือที่ต้องเช็ค']]
     .map(([k,l])=>`<button class="chip" data-k="${k}" aria-pressed="${k===skind}">${l}<small>${cnt[k]||0}</small></button>`).join('');
   const kc=$('#kcat').value,cats=[...new Set([...stock.map(i=>i.cat).filter(Boolean),...CATS])].sort((a,b)=>a.localeCompare(b,'th'));
   $('#kcat').innerHTML='<option value="">ทุกหมวดหมู่</option>'+cats.map(c=>`<option value="${esc(c)}">${esc(c)} (${stock.filter(i=>i.cat===c).length})</option>`).join('');
   $('#kcat').value=cats.includes(kc)?kc:'';const kcf=$('#kcat').value;
   const q=$('#kq').value.trim().toLowerCase(), so=$('#ksort').value;
-  let rows=stock.filter(i=>(!kcf||i.cat===kcf)&&(skind==='all'||(skind==='low'?isLow(i):i.kind===skind))&&(!q||[i.code,i.name,i.cat,i.location,i.note].join(' ').toLowerCase().includes(q)))
-    .map(i=>{const p=priceOf(i);return {i,p,val:p?Number(p.price)*Number(i.qty):null}});
+  let rows=stock.filter(i=>(!kcf||i.cat===kcf)&&(skind==='all'||(skind==='low'?isLow(i):skind==='check'?needCheck(i):i.kind===skind))&&(!q||[i.code,i.name,i.cat,i.location,i.note,i.supplier,i.bill_no].join(' ').toLowerCase().includes(q)))
+    .map(i=>{const p=unitPrice(i);return {i,p,val:p?p.price*Number(i.qty):null}});
   const r=x=>Number(x.i.min_qty)>0?Number(x.i.qty)/Number(x.i.min_qty):1e9;
   rows.sort(so==='name'?(a,b)=>a.i.name.localeCompare(b.i.name,'th'):so==='code'?(a,b)=>String(a.i.code).localeCompare(String(b.i.code),'th'):so==='value'?(a,b)=>(b.val??-1)-(a.val??-1):(a,b)=>r(a)-r(b)||a.i.name.localeCompare(b.i.name,'th'));
   $('#krows').innerHTML=rows.map(({i,p,val})=>`<tr data-sid="${esc(i.id)}" tabindex="0"><td><div class="nm">${esc(i.name)}</div><div class="cat">${[i.code,i.cat].filter(Boolean).map(esc).join(' · ')}</div></td>
     <td>${KIND[i.kind]||''}</td><td class="r"><b class="num">${qn(i.qty)}</b> ${esc(i.unit)}${isLow(i)?'<div><span class="low">ต้องสั่งซื้อ</span></div>':''}</td>
-    <td class="r num">${Number(i.min_qty)>0?qn(i.min_qty):'—'}</td><td>${esc(i.location)}</td><td>${i.kind==='consumable'?'':esc(KSTAT[i.status]||'')}</td>
-    <td class="r">${p?`<span class="num">${baht(p.price)}</span><div class="best">${esc(p.supplier)} · มูลค่า ${baht(val)}</div>`:'<span class="cat">—</span>'}</td></tr>`).join('');
+    <td class="r num">${Number(i.min_qty)>0?qn(i.min_qty):'—'}</td><td>${esc(i.location)}</td><td>${isAsset(i)?`${esc(KSTAT[i.status]||'')}<div class="best${needCheck(i)?' up':''}">${esc(checkTxt(i))}</div>`:''}</td>
+    <td class="r">${p?`<span class="num">${baht(p.price)}</span><div class="best">${p.own?'ราคาซื้อ':esc(p.supplier)} · มูลค่า ${baht(val)}</div>`:'<span class="cat">—</span>'}</td></tr>`).join('');
   const e=$('#kEmpty');e.hidden=!!rows.length;e.textContent=stock.length?'ไม่พบรายการที่ตรงกับการค้นหา':'ยังไม่มีรายการสต๊อก กด “+ เพิ่มรายการ” เพื่อเริ่มบันทึก';
   const tv=rows.reduce((a,x)=>a+(x.val||0),0);
-  $('#kSum').textContent=`${rows.length} รายการ`+(tv?` · มูลค่ารวมโดยประมาณ ${baht(tv)} บาท (จากราคาถูกสุดล่าสุด)`:'');
+  $('#kSum').textContent=`${rows.length} รายการ`+(tv?` · มูลค่ารวมโดยประมาณ ${baht(tv)} บาท (ราคาซื้อของเครื่องมือ หรือราคาถูกสุดล่าสุด)`:'');
   const fill=(id,vals)=>$(id).innerHTML=[...new Set(vals.map(v=>String(v||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th')).map(v=>`<option value="${esc(v)}">`).join('');
   fill('#lLoc',stock.map(i=>i.location));fill('#lPerson',[...staff.map(s=>s.name),...moves.map(m=>m.person)]);
   if(openStock&&$('#dK').open)showStock(openStock,false);
 }
-function siToggle(){const c=$('#siKind').value==='consumable';$('#siStatusW').hidden=c}
+function siToggle(){const c=$('#siKind').value==='consumable';$('#siStatusW').hidden=c;$('#siBuyW').hidden=c}
 function openSI(i={},id=null){
   siEditing=id;$('#siTitle').textContent=id?'แก้ไขรายการสต๊อก':'เพิ่มรายการสต๊อก';
   $('#siName').value=i.name||'';$('#siKind').value=i.kind||(skind in KIND?skind:'consumable');$('#siCode').value=i.code||'';$('#siCat').value=i.cat||'';
   $('#siUnit').value=i.unit||'';$('#siMin').value=i.min_qty??0;$('#siLoc').value=i.location||'';$('#siStatus').value=i.status||'ready';$('#siNote').value=i.note||'';
+  $('#siSup').value=i.supplier||'';$('#siBill').value=i.bill_no||'';$('#siDate').value=i.purchase_date||'';$('#siCost').value=i.unit_cost??'';
   $('#siQty').value=0;$('#siQtyW').hidden=!!id;$('#siErr').textContent='';siToggle();
   const d=$('#siDel');d.hidden=!id||!isAdmin();d.dataset.sure='';d.textContent='ลบรายการนี้';
   $('#dSI').showModal();setTimeout(()=>$('#siName').focus(),30);
@@ -578,6 +596,7 @@ async function saveSI(e){
   e.preventDefault();$('#siErr').textContent='';
   const d={name:$('#siName').value.trim(),kind:$('#siKind').value,code:$('#siCode').value.trim(),cat:$('#siCat').value.trim(),unit:$('#siUnit').value.trim(),
     min_qty:Number($('#siMin').value)||0,location:$('#siLoc').value.trim(),status:$('#siKind').value==='consumable'?'ready':$('#siStatus').value,note:$('#siNote').value.trim()};
+  if(d.kind!=='consumable'){const c=$('#siCost').value;Object.assign(d,{supplier:$('#siSup').value.trim(),bill_no:$('#siBill').value.trim(),purchase_date:$('#siDate').value||null,unit_cost:c===''?null:Number(c)})}
   const q0=Number($('#siQty').value)||0;
   if(!d.name||!d.unit){$('#siErr').textContent='กรอกชื่อและหน่วย';return}
   if(d.min_qty<0||q0<0){$('#siErr').textContent='จำนวนต้องไม่ติดลบ';return}
@@ -596,24 +615,31 @@ async function delSI(){
   try{const r=must(await sb.from('pd_stock_items').delete().eq('id',siEditing).select('id'));if(!r.length)throw new Error('เฉพาะแอดมิน');
     $('#dSI').close();$('#dK').close();toast('ลบรายการแล้ว');await loadData()}catch(e){$('#siErr').textContent='ลบไม่สำเร็จ: '+e.message}
 }
-function mvMode(){const k=document.querySelector('[name=mk]:checked').value;
-  $('#mvQtyL').textContent=k==='in'?'จำนวนที่รับเข้า *':k==='out'?'จำนวนที่เบิก *':'ยอดที่นับได้จริง *';
+function mvMode(){const k=document.querySelector('[name=mk]:checked').value;const it=stock.find(x=>x.id===openStock),a=it&&isAsset(it);
+  $('#mkOut').textContent=a?'ยืม / นำไปใช้':'เบิกออก';$('#mkIn').textContent=a?'คืน / รับเข้า':'รับเข้า';
+  $('#mvQtyL').textContent=k==='in'?(a?'จำนวนที่คืน / รับเข้า *':'จำนวนที่รับเข้า *'):k==='out'?(a?'จำนวนที่ยืม *':'จำนวนที่เบิก *'):'ยอดที่นับได้จริง *';
   $('#mvPersonL').textContent=k==='in'?'ผู้รับของ':k==='out'?'ผู้เบิก / ผู้ยืม':'ผู้ตรวจนับ';}
 async function showStock(id,reload=true){
   const i=stock.find(x=>x.id===id);if(!i){$('#dK').close();return}
   openStock=id;$('#kName').textContent=i.name;
-  $('#kMeta').textContent=[KIND[i.kind],i.code,i.cat,i.location&&'ที่เก็บ '+i.location,i.kind!=='consumable'&&KSTAT[i.status]].filter(Boolean).join(' · ');
-  const p=priceOf(i);
+  $('#kMeta').textContent=[KIND[i.kind],i.code,i.cat,i.location&&'ที่เก็บ '+i.location,isAsset(i)&&KSTAT[i.status],
+    isAsset(i)&&i.supplier&&'ซื้อจาก '+i.supplier,isAsset(i)&&i.bill_no&&'บิล '+i.bill_no,isAsset(i)&&i.purchase_date&&'ซื้อ '+thDate(i.purchase_date)].filter(Boolean).join(' · ');
+  $('#kCheck').hidden=!isAsset(i);$('#kChecked').textContent=checkTxt(i);$('#kChecked').className='cat'+(needCheck(i)?' up':'');
+  const p=unitPrice(i);
   $('#kKv').innerHTML=[['คงเหลือ',qn(i.qty)+' '+esc(i.unit)+(isLow(i)?' <span class="low">ต้องสั่งซื้อ</span>':'')],['จุดสั่งซื้อ',Number(i.min_qty)>0?qn(i.min_qty):'—'],
-    ['ราคาถูกสุดล่าสุด',p?baht(p.price):'—'],['มูลค่าคงเหลือ',p?baht(Number(p.price)*Number(i.qty)):'—']].map(([l,v])=>`<div><span>${l}</span><b class="num">${v}</b></div>`).join('');
-  $('#kEdit').hidden=false;$('#kPrice').hidden=!p;
-  if(!$('#dK').open){$('#mvfm').reset();mvMode();$('#mvErr').textContent='';$('#kHist').innerHTML='<li class="cat">กำลังโหลด…</li>';$('#dK').showModal()}
+    [p&&p.own?'ราคาซื้อ / หน่วย':'ราคาถูกสุดล่าสุด',p?baht(p.price):'—'],['มูลค่าคงเหลือ',p?baht(p.price*Number(i.qty)):'—']].map(([l,v])=>`<div><span>${l}</span><b class="num">${v}</b></div>`).join('');
+  $('#kEdit').hidden=false;$('#kPrice').hidden=!priceOf(i);
+  if(!$('#dK').open){$('#mvfm').reset();$('#mvErr').textContent='';$('#kHist').innerHTML='<li class="cat">กำลังโหลด…</li>';$('#dK').showModal()}
+  if(reload)mvMode();
   if(reload){const r=await sb.from('pd_stock_moves').select('*').eq('item_id',id).order('created_at',{ascending:false}).limit(200);moves=r.data||[]}
-  const L={in:'รับเข้า',out:'เบิกออก',adjust:'ปรับยอด'};
+  const L=isAsset(i)?{in:'คืน / รับเข้า',out:'ยืม / นำไปใช้',adjust:'ปรับยอด'}:{in:'รับเข้า',out:'เบิกออก',adjust:'ปรับยอด'};
   $('#kHist').innerHTML=moves.length?moves.map(m=>`<li><div><b class="${m.kind==='out'?'mvout':'mvin'}">${L[m.kind]} ${m.kind==='adjust'?'เป็น ':m.kind==='out'?'−':'+'}${qn(m.qty)}</b> <span class="cat">คงเหลือ ${qn(m.balance)}</span>
     <div class="cat">${new Date(m.created_at).toLocaleString('th-TH',{day:'numeric',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'})}${m.person?' · '+esc(m.person):''}${m.ref?' · '+esc(m.ref):''}${m.note?' · '+esc(m.note):''}</div>
     ${who(m.created_by)?`<div class="by">บันทึกโดย ${esc(who(m.created_by))}</div>`:''}</div><span></span></li>`).join(''):'<li class="cat">ยังไม่มีการเคลื่อนไหว</li>';
 }
+async function doCheck(st,btn){
+  btn.disabled=true;try{must(await sb.rpc('pd_stock_check',{p_item:openStock,p_status:st}));toast(st==='ready'?'บันทึกการเช็คแล้ว':'บันทึกสถานะ '+KSTAT[st]);await loadData()}
+  catch(err){toast('ไม่สำเร็จ: '+err.message)}finally{btn.disabled=false}}
 async function saveMove(e){
   e.preventDefault();$('#mvErr').textContent='';
   const kind=document.querySelector('[name=mk]:checked').value, qty=Number($('#mvQty').value);
@@ -627,10 +653,10 @@ async function saveMove(e){
   finally{$('#mvSave').disabled=false}
 }
 function stockCSV(){
-  const h=['รหัส','ชื่อ','ประเภท','หมวดหมู่','คงเหลือ','หน่วย','จุดสั่งซื้อ','ต้องสั่งซื้อ','ที่เก็บ','สถานะ','ราคาถูกสุดล่าสุด','ร้าน','มูลค่า','หมายเหตุ'];
+  const h=['รหัส','ชื่อ','ประเภท','หมวดหมู่','คงเหลือ','หน่วย','จุดสั่งซื้อ','ต้องสั่งซื้อ','ที่เก็บ','สถานะ','เช็คล่าสุด','ราคาต่อหน่วย','ร้าน','มูลค่า','เลขที่บิล','วันที่ซื้อ','หมายเหตุ'];
   const c=v=>{v=String(v??'');return /[",\n\t]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
-  const rows=[...stock].sort((a,b)=>a.kind.localeCompare(b.kind)||a.name.localeCompare(b.name,'th')).map(i=>{const p=priceOf(i);
-    return [i.code,i.name,KIND[i.kind],i.cat,i.qty,i.unit,i.min_qty,isLow(i)?'ใช่':'',i.location,i.kind==='consumable'?'':KSTAT[i.status],p?p.price:'',p?p.supplier:'',p?(Number(p.price)*Number(i.qty)).toFixed(2):'',i.note]});
+  const rows=[...stock].sort((a,b)=>a.kind.localeCompare(b.kind)||a.name.localeCompare(b.name,'th')).map(i=>{const p=unitPrice(i);
+    return [i.code,i.name,KIND[i.kind],i.cat,i.qty,i.unit,i.min_qty,isLow(i)?'ใช่':'',i.location,isAsset(i)?KSTAT[i.status]:'',i.last_checked||'',p?p.price:'',p?(p.own?i.supplier:p.supplier):'',p?(p.price*Number(i.qty)).toFixed(2):'',i.bill_no||'',i.purchase_date||'',i.note]});
   const txt='﻿'+[h,...rows].map(r=>r.map(c).join(',')).join('\r\n');
   const u=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'}));
   const l=document.createElement('a');l.href=u;l.download='สต๊อก-'+today()+'.csv';document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);
@@ -742,7 +768,8 @@ $('#catList').onclick=e=>{const a=e.target.closest('[data-cedit]'),r=e.target.cl
   if(r)renCat(r.dataset.cren);if(d)delCat(d.dataset.cdel,d)};
 $('#catList').onkeydown=e=>{if(e.key==='Enter'&&e.target.id==='catRen'){e.preventDefault();renCat(catEditing)}};$('#kCsv').onclick=stockCSV;
 $('#sifm').addEventListener('submit',saveSI);$('#siKind').onchange=siToggle;$('#siDel').onclick=delSI;
-$('#mvfm').addEventListener('submit',saveMove);$('#mvfm').addEventListener('change',e=>{if(e.target.name==='mk')mvMode()});
+$('#mvfm').addEventListener('submit',saveMove);
+$('#kCheck').onclick=e=>{const b=e.target.closest('[data-chk]');if(b)doCheck(b.dataset.chk,b)};$('#mvfm').addEventListener('change',e=>{if(e.target.name==='mk')mvMode()});
 $('#dK').addEventListener('close',()=>{openStock=null});
 $('#kEdit').onclick=()=>{const i=stock.find(x=>x.id===openStock);if(i)openSI(i,i.id)};
 $('#kPrice').onclick=()=>{const i=stock.find(x=>x.id===openStock);if(!i)return;$('#dK').close();tab('price');$('#q').value=i.name;cat='ทั้งหมด';render();const g=groups().find(x=>nk(x.name)===nk(i.name));if(g)showItem(g.k)};
@@ -778,7 +805,7 @@ async function loadData(){
   suppliers=sp.data.map(r=>({...r,payNote:r.pay_note}));
   staff=st.data||[];
   CATS=(ct.data||[]).map(r=>r.name);
-  stock=(sk.data||[]).map(r=>({...r,qty:Number(r.qty),min_qty:Number(r.min_qty)}));
+  stock=(sk.data||[]).map(r=>({...r,qty:Number(r.qty),min_qty:Number(r.min_qty),unit_cost:r.unit_cost==null?null:Number(r.unit_cost)}));
   live=true;$('#status').textContent='อัปเดตล่าสุด '+new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})+' · อัปเดตอัตโนมัติเมื่อมีคนแก้ไข';
   render();renderStaff();renderStock();
 }
